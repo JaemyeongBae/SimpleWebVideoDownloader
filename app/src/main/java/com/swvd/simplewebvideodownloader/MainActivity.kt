@@ -684,7 +684,7 @@ fun MainScreen(
 
         // 앱 제목
         Text(
-                            text = "Simple Web Video Downloader v5.7",
+                            text = "Simple Web Video Downloader v5.8",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(bottom = 12.dp),
             maxLines = 1,
