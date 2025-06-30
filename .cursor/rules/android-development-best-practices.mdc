@@ -1,0 +1,137 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Android Development Best Practices & Error Prevention
+
+## Critical Function Context Awareness
+
+### 1. Function Reference vs Lambda Distinction
+**ALWAYS** verify function signature compatibility when using function references (`::functionName`):
+- ❌ WRONG: `onLoadUrl = ::loadUrl` when loadUrl() takes no parameters but callback expects (String) -> Unit
+- ✅ CORRECT: `onLoadUrl = { url -> loadUrl(url) }` or implement proper parameter handling
+
+**Rule**: Before using `::` function reference, verify parameter count and types match exactly.
+
+### 2. Composable Context Validation
+**NEVER** call @Composable functions outside of @Composable context:
+- ❌ WRONG: Calling Composable functions inside AndroidView factory lambdas
+- ✅ CORRECT: Use WebView.loadUrl() method explicitly with `this.loadUrl(url)`
+
+**Template for WebView factory**:
+```kotlin
+AndroidView(
+    factory = { context ->
+        WebView(context).apply {
+            // Use this.loadUrl() for WebView method
+            // NOT loadUrl() which might reference @Composable function
+        }
+    }
+)
+```
+
+## Build System & Import Management
+
+### 3. Progressive Import Addition
+When adding new UI components, add imports incrementally:
+1. First add core UI imports (BorderStroke, icons)
+2. Test compilation after each major component addition
+3. Never add all imports at once without verification
+
+**Required imports checklist for new UI components**:
+- `androidx.compose.foundation.BorderStroke` for Card borders
+- `androidx.compose.material.icons.filled.*` for specific icons
+- `androidx.compose.foundation.lazy.grid.*` for grid layouts
+
+### 4. Version Management Strategy
+**ALWAYS** increment version numbers when adding major features:
+- Minor UI changes: patch version (5.2.1)
+- New feature components: minor version (5.3.0)
+- Major UI overhauls: major version (6.0.0)
+
+## UI Component Architecture
+
+### 5. Component Parameter Validation
+When creating new @Composable functions with many parameters:
+1. **ALWAYS** verify all callback functions are properly typed
+2. Use explicit lambda syntax for complex callbacks
+3. Test component isolation before integration
+
+**Template for complex UI components**:
+```kotlin
+@Composable
+fun ComplexUI(
+    // State parameters first
+    state: UIState,
+    // Simple callbacks second  
+    onSimpleAction: () -> Unit,
+    // Complex callbacks with explicit types
+    onComplexAction: (param: Type) -> Unit,
+    // Content composables last
+    content: @Composable () -> Unit
+)
+```
+
+### 6. State Management Validation
+Before implementing new UI features:
+1. Identify ALL state variables needed
+2. Define state update functions explicitly
+3. Verify state synchronization between components
+
+**State checklist for tabbed UI**:
+- Tab list state
+- Current tab index
+- Tab overview visibility
+- URL editing state
+- History dropdown state
+
+## Error Recovery Patterns
+
+### 7. Compilation Error Debugging Process
+When compilation fails:
+1. **STOP** and read error messages completely
+2. Identify error categories: type mismatch, context issues, missing imports
+3. Fix ONE category at a time
+4. Test compilation after each fix category
+
+### 8. WebView Integration Safety
+**ALWAYS** distinguish between:
+- WebView native methods (use `this.methodName()`)
+- Custom Composable functions (use proper context)
+- State management functions (verify @Composable context)
+
+## Code Review Checklist
+
+Before committing new UI features:
+- [ ] All function references use correct syntax
+- [ ] No @Composable functions called outside @Composable context  
+- [ ] All required imports are present
+- [ ] Version number is incremented appropriately
+- [ ] Build succeeds without errors
+- [ ] UI components are properly isolated and testable
+
+## Emergency Rollback Protocol
+
+If major UI changes cause compilation issues:
+1. **IMMEDIATELY** test build after each significant change
+2. Use git tags for stable versions (`v5.1`, `v5.2`)
+3. Keep incremental commits for easy rollback
+4. Never combine multiple major changes in single commit
+
+**Rollback command template**:
+```bash
+git reset --hard v[last-working-version]
+git checkout -b fix/[issue-description]
+# Implement changes incrementally
+```
+
+## Learning Integration
+
+### Apply Error Analysis
+1. **Document** each error type encountered
+2. **Categorize** errors: syntax, context, architecture
+3. **Create** specific rules for each error category
+4. **Review** rules before similar development tasks
+
+This rule system ensures systematic error prevention and promotes clean, maintainable Android Compose code architecture.

@@ -1,0 +1,235 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Kotlin Compose Safety Guidelines & Error Prevention
+
+## Function Reference Safety Patterns
+
+### 1. Method Reference Validation Protocol
+**CRITICAL**: Always verify parameter signatures before using `::` syntax
+
+**Safe Pattern**:
+```kotlin
+// ❌ DANGEROUS - Parameter mismatch
+onCallback = ::functionWithNoParams  // when callback expects (String) -> Unit
+
+// ✅ SAFE - Explicit lambda with proper parameters
+onCallback = { param -> functionWithNoParams() }
+// OR implement function to accept parameters
+onCallback = ::functionWithCorrectSignature
+```
+
+**Verification Checklist**:
+- [ ] Count parameters: callback signature vs function signature
+- [ ] Check parameter types: exact type matching required
+- [ ] Verify return types: Unit vs specific return types
+- [ ] Test with simple lambda first, then optimize to method reference
+
+### 2. Composable Context Isolation
+**NEVER** mix Android View methods with Composable functions
+
+**Reference pattern in [MainActivity.kt](mdc:app/src/main/java/com/swvd/simplewebvideodownloader/MainActivity.kt)**:
+```kotlin
+AndroidView(
+    factory = { context ->
+        WebView(context).apply {
+            // ✅ CORRECT - Use Android View methods explicitly
+            this.loadUrl(url)
+            
+            // ❌ WRONG - Don't call Composable functions here
+            // loadUrl(url)  // This might reference @Composable function
+        }
+    }
+)
+```
+
+## State Management Safety
+
+### 3. State Synchronization Validation
+When managing complex UI state, ensure all state variables are properly initialized:
+
+**Required state variables for complex UI (based on FullscreenUI implementation)**:
+```kotlin
+// Tab management state
+var tabs by remember { mutableStateOf(listOf(Tab())) }
+var currentTabIndex by remember { mutableIntStateOf(0) }
+
+// UI mode state  
+var showTabOverview by remember { mutableStateOf(false) }
+var isEditingUrl by remember { mutableStateOf(false) }
+
+// Content state
+var urlText by remember { mutableStateOf("") }
+var currentUrl by remember { mutableStateOf("") }
+```
+
+### 4. Lambda Parameter Handling
+For complex callback implementations, use explicit parameter handling:
+
+**Template from successful FullscreenUI implementation**:
+```kotlin
+onLoadUrl = { url ->
+    // Step 1: Input validation and URL formatting
+    val finalUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        "https://$url"
+    } else {
+        url
+    }
+    
+    // Step 2: State updates
+    currentUrl = finalUrl
+    urlText = finalUrl
+    
+    // Step 3: Complex state synchronization
+    currentTab?.let { tab ->
+        tabs = tabs.map {
+            if (it.id == tab.id) it.copy(url = finalUrl)
+            else it
+        }
+    }
+    
+    // Step 4: Side effects (WebView, history, etc.)
+    fullscreenWebView?.loadUrl(finalUrl)
+    
+    // Step 5: Async operations
+    Handler(Looper.getMainLooper()).postDelayed({
+        analyzePageForMp4()
+    }, 1000)
+}
+```
+
+## Import Management Safety
+
+### 5. Progressive Import Strategy
+Add imports in dependency order to avoid missing import errors:
+
+**Phase 1 - Foundation**:
+```kotlin
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+```
+
+**Phase 2 - Layout**:
+```kotlin
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+```
+
+**Phase 3 - Material**:
+```kotlin
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.*
+```
+
+### 6. Icon Compatibility Safety
+**WARNING**: Some Material Icons are deprecated. Use safe alternatives:
+
+```kotlin
+// ⚠️  DEPRECATED (causes warnings)
+Icons.Filled.ArrowBack
+Icons.Filled.ArrowForward
+
+// ✅ SAFE ALTERNATIVES
+Icons.Default.ArrowBack  // Generic version
+Icons.AutoMirrored.Filled.ArrowBack  // New recommended version
+```
+
+## Component Architecture Safety
+
+### 7. Large Component Parameter Validation
+For components with many parameters (like FullscreenUI), group parameters logically:
+
+**Safe parameter grouping pattern**:
+```kotlin
+@Composable
+fun ComplexComponent(
+    // Group 1: Core state
+    tabs: List<Tab>,
+    currentTabIndex: Int,
+    currentUrl: String,
+    
+    // Group 2: UI state  
+    showOverview: Boolean,
+    isEditing: Boolean,
+    
+    // Group 3: Simple callbacks
+    onSimpleAction: () -> Unit,
+    onStateChange: (Boolean) -> Unit,
+    
+    // Group 4: Complex callbacks with explicit types
+    onComplexAction: (String) -> Unit,
+    onMultiParamAction: (Int, String) -> Unit,
+    
+    // Group 5: Composable content
+    content: @Composable () -> Unit
+)
+```
+
+### 8. WebView Integration Safety
+**ALWAYS** distinguish between WebView instance methods and app functions:
+
+```kotlin
+// ✅ SAFE - WebView instance method
+webView.loadUrl(url)
+this.loadUrl(url)  // Inside WebView.apply block
+
+// ❌ DANGEROUS - Might reference wrong function
+loadUrl(url)  // Could be Composable function
+
+// ✅ SAFE - App function with proper context
+loadUrlInApp(url)  // Clear naming prevents confusion
+```
+
+## Error Recovery Patterns
+
+### 9. Compilation Error Triage
+When build fails, fix errors in this priority order:
+
+1. **Import errors** - Missing or incorrect imports
+2. **Type mismatch errors** - Function signature incompatibilities  
+3. **Context errors** - @Composable function calls in wrong context
+4. **Scope errors** - Variable access outside proper scope
+
+### 10. Git Safety for Complex UI Changes
+Before implementing complex UI features:
+
+```bash
+# Create feature branch
+git checkout -b feature/new-ui-component
+
+# Commit working state first
+git add .
+git commit -m "Working state before UI changes"
+
+# Tag for easy rollback
+git tag before-ui-changes
+
+# Implement changes incrementally with frequent commits
+git commit -m "Add basic component structure"
+git commit -m "Add state management"  
+git commit -m "Add interactions"
+```
+
+## Testing & Validation Safety
+
+### 11. Incremental Build Validation
+After each major change:
+- [ ] Clean build: `./gradlew clean`
+- [ ] Compile check: `./gradlew compileDebugKotlin`
+- [ ] Full build: `./gradlew assembleDebug`
+- [ ] Runtime test: Install and basic functionality check
+
+### 12. Component Isolation Testing
+Before integrating complex components:
+1. Create minimal test implementation
+2. Verify basic rendering
+3. Test state changes
+4. Validate callbacks
+5. Check error conditions
+
+This safety framework prevents common Kotlin Compose errors and ensures reliable development progression.

@@ -1,0 +1,140 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Prompt Engineering Guidelines for AI-Assisted Development
+
+## Structured Communication Patterns
+
+### 1. Requirement Specification Template
+When requesting new features, ALWAYS use this structure:
+
+```
+CONTEXT: [Current state/version]
+GOAL: [Specific desired outcome]
+CONSTRAINTS: [Technical limitations, existing architecture]
+ACCEPTANCE CRITERIA: [Measurable success conditions]
+PRIORITY: [Critical/High/Medium/Low]
+```
+
+**Example**:
+```
+CONTEXT: v5.2 with basic tab functionality
+GOAL: Full-screen UI with 5-button navigation layout
+CONSTRAINTS: Must preserve existing WebView functionality
+ACCEPTANCE CRITERIA: URL editing, tab overview, 5 navigation buttons working
+PRIORITY: High
+```
+
+### 2. Progressive Feature Development Protocol
+**NEVER** request complex features in single iteration:
+
+1. **Phase 1**: Core structure and basic UI
+2. **Phase 2**: State management and interactions  
+3. **Phase 3**: Advanced features and polish
+4. **Phase 4**: Testing and optimization
+
+### 3. Error Context Enrichment
+When reporting errors, provide:
+- **Exact error messages** (copy-paste)
+- **File location** (line numbers)
+- **Expected behavior** vs actual behavior
+- **Recent changes** that might be related
+
+## AI Collaboration Optimization
+
+### 4. Code Review Request Format
+Structure code review requests with specific focus areas:
+
+```
+REVIEW FOCUS:
+- [ ] Function signature compatibility
+- [ ] @Composable context safety
+- [ ] Import completeness
+- [ ] State management patterns
+- [ ] Error handling coverage
+
+SPECIFIC CONCERNS:
+[List specific areas of uncertainty]
+```
+
+### 5. Incremental Validation Strategy
+**ALWAYS** request AI to:
+1. Validate approach BEFORE implementation
+2. Break complex changes into reviewable chunks
+3. Provide checkpoint verification steps
+4. Include rollback instructions for each phase
+
+### 6. Knowledge Transfer Documentation
+When AI provides solutions, request:
+- **Why** this approach was chosen
+- **What** alternatives were considered
+- **How** to modify for similar future cases
+- **When** this pattern should/shouldn't be used
+
+## Quality Assurance Integration
+
+### 7. Pre-Implementation Verification
+Before requesting implementation, AI should confirm:
+- [ ] Understanding of current architecture (reference [MainActivity.kt](mdc:app/src/main/java/com/swvd/simplewebvideodownloader/MainActivity.kt))
+- [ ] Compatibility with existing build system (reference [build.gradle.kts](mdc:app/build.gradle.kts))
+- [ ] Import requirements identification
+- [ ] Testing strategy for new features
+
+### 8. Build Verification Protocol
+After each significant change, request AI to:
+1. Predict potential compilation issues
+2. Verify all required imports are present
+3. Check function signature compatibility
+4. Validate @Composable context usage
+
+## Learning & Adaptation Patterns
+
+### 9. Error Pattern Recognition
+Maintain ongoing dialogue about:
+- **Recurring error types** and their root causes
+- **Successful patterns** that prevented errors
+- **Architecture decisions** that simplified development
+- **Tool usage** that improved efficiency
+
+### 10. Contextual Memory Management
+Help AI maintain context by:
+- **Referencing** previous successful solutions
+- **Linking** current issues to past similar problems
+- **Updating** AI on project evolution and changes
+- **Confirming** AI's understanding before complex operations
+
+## Communication Efficiency Rules
+
+### 11. Clarity Over Brevity
+- Use specific technical terms correctly
+- Provide complete context rather than assuming knowledge
+- Ask for clarification when requirements are ambiguous
+- Confirm understanding before proceeding with implementation
+
+### 12. Iterative Refinement Process
+Structure conversations for continuous improvement:
+1. **Initial request** with clear requirements
+2. **AI proposal** with approach explanation
+3. **Human feedback** with specific adjustments
+4. **Refined solution** with implementation plan
+5. **Validation** of results and lessons learned
+
+## Meta-Learning Integration
+
+### 13. Rule Evolution Protocol
+Regularly update these rules based on:
+- **New error patterns** discovered in development
+- **Successful collaboration** techniques that emerge
+- **Tool capabilities** that improve over time
+- **Project complexity** changes requiring adaptation
+
+### 14. Knowledge Consolidation
+After major development phases:
+- Document successful patterns for reuse
+- Identify ineffective approaches to avoid
+- Update architectural guidelines based on experience
+- Create project-specific rule extensions
+
+This prompt engineering framework ensures efficient, error-free AI-assisted development while building cumulative knowledge for future projects.

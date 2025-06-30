@@ -30,6 +30,10 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
@@ -51,23 +55,36 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import java.util.UUID
+
+// 간단한 탭 데이터 클래스
+data class Tab(
+    val id: String = UUID.randomUUID().toString(),
+    var title: String = "새 탭",
+    var url: String = "https://www.google.com"
+)
 
 class MainActivity : ComponentActivity() {
 
@@ -190,6 +207,11 @@ fun MainScreen(
     onDownloadFile: (String, String) -> Unit,
     onFullscreenModeChange: (Boolean) -> Unit
 ) {
+    // 탭 관련 상태
+    var tabs by remember { mutableStateOf(listOf(Tab())) }
+    var currentTabIndex by remember { mutableIntStateOf(0) }
+    var showTabOverview by remember { mutableStateOf(false) }
+    
     var urlText by remember { mutableStateOf("") }
     var currentUrl by remember { mutableStateOf("") }
     var webView by remember { mutableStateOf<WebView?>(null) }
@@ -199,6 +221,10 @@ fun MainScreen(
     var hasAnalyzed by remember { mutableStateOf(false) }
     var downloadingUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
     var urlSectionExpanded by remember { mutableStateOf(true) }
+    
+    // 다운로드 결과 알림 상태
+    var downloadResultMessage by remember { mutableStateOf<String?>(null) }
+    var showDownloadResult by remember { mutableStateOf(false) }
     var mp4SectionExpanded by remember { mutableStateOf(true) }
     var isWebViewFullscreen by remember { mutableStateOf(false) }
     var canGoBack by remember { mutableStateOf(false) }
@@ -209,12 +235,51 @@ fun MainScreen(
     val clipboardManager = LocalClipboardManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
+    val currentTab = if (tabs.isNotEmpty() && currentTabIndex in tabs.indices) tabs[currentTabIndex] else null
+
+    // 탭 관리 함수들
+    fun addNewTab() {
+        val newTab = Tab()
+        tabs = tabs + newTab
+        currentTabIndex = tabs.size - 1
+    }
+    
+    fun closeTab(index: Int) {
+        if (tabs.size <= 1) return // 최소 1개 탭 유지
+        
+        tabs = tabs.filterIndexed { i, _ -> i != index }
+        if (index <= currentTabIndex && currentTabIndex > 0) {
+            currentTabIndex--
+        }
+        if (currentTabIndex >= tabs.size) {
+            currentTabIndex = tabs.size - 1
+        }
+    }
+    
+    fun switchTab(index: Int) {
+        if (index in tabs.indices) {
+            currentTabIndex = index
+            // 탭 전환시 URL 동기화
+            currentTab?.let { tab ->
+                urlText = tab.url
+                currentUrl = tab.url
+            }
+        }
+    }
 
     // 네비게이션 상태 업데이트 함수
     fun updateNavigationState() {
         val activeWebView = if (isWebViewFullscreen) fullscreenWebView else webView
+        val oldCanGoBack = canGoBack
+        val oldCanGoForward = canGoForward
+        
         canGoBack = activeWebView?.canGoBack() ?: false
         canGoForward = activeWebView?.canGoForward() ?: false
+        
+        Log.d("Navigation", "상태 업데이트 - 전체화면: $isWebViewFullscreen")
+        Log.d("Navigation", "활성 WebView: ${activeWebView != null}")
+        Log.d("Navigation", "뒤로가기: $oldCanGoBack → $canGoBack")
+        Log.d("Navigation", "앞으로가기: $oldCanGoForward → $canGoForward")
     }
 
     // 전체화면 모드에서 뒤로가기 처리 및 상태 동기화
@@ -380,6 +445,11 @@ fun MainScreen(
             }
             currentUrl = url
             
+            // 현재 탭의 URL 업데이트
+            currentTab?.let { tab ->
+                tabs = tabs.map { if (it.id == tab.id) it.copy(url = url) else it }
+            }
+            
             // 히스토리에 URL 추가 (중복 제거)
             if (!urlHistory.contains(url)) {
                 urlHistory = urlHistory + url
@@ -401,7 +471,14 @@ fun MainScreen(
 
         // HTTP/HTTPS URL 확인
         if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
-            Toast.makeText(context, "유효하지 않은 URL입니다", Toast.LENGTH_SHORT).show()
+            downloadResultMessage = "다운로드 실패!\n유효하지 않은 URL입니다"
+            showDownloadResult = true
+            
+            // 실패 알림은 3초 후 자동 사라짐
+            Handler(Looper.getMainLooper()).postDelayed({
+                showDownloadResult = false
+                downloadResultMessage = null
+            }, 3000)
             return
         }
 
@@ -410,6 +487,14 @@ fun MainScreen(
                 ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
 
         if (needsPermission) {
+            downloadResultMessage = "다운로드 실패!\n저장소 권한이 필요합니다"
+            showDownloadResult = true
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                showDownloadResult = false
+                downloadResultMessage = null
+            }, 3000)
+            
             onRequestPermissions()
             return
         }
@@ -427,8 +512,34 @@ fun MainScreen(
             "video_${System.currentTimeMillis()}.mp4"
         }
 
-        downloadingUrls = downloadingUrls + cleanUrl
-        onDownloadFile(cleanUrl, filename)
+        try {
+            downloadingUrls = downloadingUrls + cleanUrl
+            onDownloadFile(cleanUrl, filename)
+            
+            // 다운로드 성공 알림
+            downloadResultMessage = "다운로드 시작!\n파일: $filename\nDownloads 폴더에 저장됩니다"
+            showDownloadResult = true
+            
+            // 성공 알림은 3초 후 자동 사라짐
+            Handler(Looper.getMainLooper()).postDelayed({
+                showDownloadResult = false
+                downloadResultMessage = null
+            }, 3000)
+            
+        } catch (e: Exception) {
+            // 다운로드 실패 시 상태 업데이트 및 에러 알림
+            downloadingUrls = downloadingUrls - cleanUrl
+            downloadResultMessage = "다운로드 실패!\n오류: ${e.message}"
+            showDownloadResult = true
+            
+            // 실패 알림은 5초 후 자동 사라짐
+            Handler(Looper.getMainLooper()).postDelayed({
+                showDownloadResult = false
+                downloadResultMessage = null
+            }, 5000)
+            
+            Log.e("Download", "다운로드 실패: ${e.message}")
+        }
     }
 
     // URL 변경 및 1회 MP4 감지 함수
@@ -490,289 +601,260 @@ fun MainScreen(
         updateNavigationState()
         // 전체화면 모드 시 몰입형 모드 활성화
         onFullscreenModeChange(isWebViewFullscreen)
+        
+        // 전체화면 모드 전환 후 추가적인 상태 업데이트 (WebView 로딩 대기)
+        kotlinx.coroutines.delay(500)
+        updateNavigationState()
+        kotlinx.coroutines.delay(1000)
+        updateNavigationState()
     }
 
-    // 전체화면 모드일 때는 WebView만 표시
+    // 탭 전환시 URL 동기화
+    LaunchedEffect(currentTabIndex) {
+        currentTab?.let { tab ->
+            urlText = tab.url
+            currentUrl = tab.url
+        }
+    }
+
+    // URL 변경 시 네비게이션 상태 업데이트
+    LaunchedEffect(currentUrl) {
+        if (currentUrl.isNotEmpty()) {
+            kotlinx.coroutines.delay(1000) // 페이지 로딩 대기
+            updateNavigationState()
+        }
+    }
+
+    // 전체화면 모드일 때 새로운 UI
     if (isWebViewFullscreen) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // 전체화면 WebView - 새로운 인스턴스 생성하여 충돌 방지
-            if (currentUrl.isNotEmpty()) {
-                AndroidView(
-                    factory = { context ->
-                        WebView(context).apply {
-                            webViewClient = object : WebViewClient() {
-                                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                    url?.let { newUrl ->
-                                        updateUrlIfChanged(newUrl)
-                                    }
-                                    return false
-                                }
-
-                                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                    super.onPageStarted(view, url, favicon)
-                                    url?.let { newUrl ->
-                                        updateUrlIfChanged(newUrl)
-                                    }
-                                }
-
-                                override fun onPageFinished(view: WebView?, url: String?) {
-                                    super.onPageFinished(view, url)
-                                    url?.let { newUrl ->
-                                        updateUrlIfChanged(newUrl)
-                                    }
-                                    
-                                    // 페이지 로딩 완료 후 MP4 감지
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        analyzePageForMp4()
-                                    }, 1000)
-                                }
-                            }
-                            webChromeClient = WebChromeClient()
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            settings.loadWithOverviewMode = true
-                            settings.useWideViewPort = true
-                            
-                            // 전체화면 WebView 참조 설정
-                            fullscreenWebView = this
-                            
-                            // 저장된 WebView 상태 복원 (히스토리 포함)
-                            webViewState?.let { bundle ->
-                                restoreState(bundle)
-                            } ?: run {
-                                // 저장된 상태가 없으면 현재 URL로 로드
-                                val syncUrl = webView?.url ?: currentUrl
-                                if (syncUrl.isNotEmpty()) {
-                                    loadUrl(syncUrl)
-                                }
-                            }
-                        }
-                    },
-                    update = { view ->
-                        if (currentUrl.isNotEmpty() && view.url != currentUrl) {
-                            view.loadUrl(currentUrl)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
-                        .padding(bottom = 100.dp)  // 하단 네비게이션 버튼 높이만큼 추가 패딩 증가 (60dp → 100dp)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "웹 페이지가 로드되지 않았습니다",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        FullscreenUI(
+            tabs = tabs,
+            currentTabIndex = currentTabIndex,
+            currentUrl = currentUrl,
+            urlText = urlText,
+            onUrlTextChange = { urlText = it },
+            onLoadUrl = { url ->
+                val finalUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    "https://$url"
+                } else {
+                    url
                 }
-            }
-
-            // 항상 표시되는 작은 네비게이션 버튼들 (좌측 하단)
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
-                    .padding(start = 16.dp, bottom = 48.dp, end = 16.dp),  // bottom 패딩 증가 (24dp → 48dp)
-                horizontalArrangement = Arrangement.spacedBy(12.dp)  // 버튼 간격 증가 (8dp → 12dp)
-            ) {
-                // 뒤로가기 버튼
-                FloatingActionButton(
-                    onClick = { 
-                        if (canGoBack && fullscreenWebView?.canGoBack() == true) {
-                            fullscreenWebView?.goBack()
-                            handleNavigation(fullscreenWebView)
-                        }
-                    },
-                    modifier = Modifier.size(44.dp),  // 36dp → 44dp로 증가
-                    containerColor = if (canGoBack) 
-                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
-                    else 
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "뒤로가기",
-                        modifier = Modifier.size(20.dp),  // 18dp → 20dp로 증가
-                        tint = if (canGoBack) 
-                            MaterialTheme.colorScheme.onSecondaryContainer 
-                        else 
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
+                currentUrl = finalUrl
+                urlText = finalUrl
+                
+                // 현재 탭의 URL도 업데이트
+                currentTab?.let { tab ->
+                    tabs = tabs.map {
+                        if (it.id == tab.id) it.copy(url = finalUrl)
+                        else it
+                    }
                 }
-
-                // 새로고침 버튼
-                FloatingActionButton(
-                    onClick = { 
-                        fullscreenWebView?.reload()
+                
+                // 히스토리에 URL 추가 (중복 제거)
+                if (!urlHistory.contains(finalUrl)) {
+                    urlHistory = urlHistory + finalUrl
+                }
+                
+                // WebView에 URL 로드
+                fullscreenWebView?.loadUrl(finalUrl)
+                
+                // URL 변경 후 MP4 감지
+                Handler(Looper.getMainLooper()).postDelayed({
+                    analyzePageForMp4()
+                }, 1000)
+            },
+            showTabOverview = showTabOverview,
+            onShowTabOverview = { showTabOverview = it },
+            onAddNewTab = ::addNewTab,
+            canGoBack = canGoBack,
+            canGoForward = canGoForward,
+            isAnalyzing = isAnalyzing,
+            mp4Links = mp4Links,
+            downloadingUrls = downloadingUrls,
+            urlHistory = urlHistory,
+            onGoBack = {
+                Log.d("Navigation", "뒤로가기 클릭 - canGoBack: $canGoBack, fullscreenWebView: ${fullscreenWebView != null}")
+                fullscreenWebView?.let { webView ->
+                    Log.d("Navigation", "WebView canGoBack: ${webView.canGoBack()}")
+                    if (webView.canGoBack()) {
+                        webView.goBack()
+                        // 즉시 네비게이션 상태 업데이트
                         Handler(Looper.getMainLooper()).postDelayed({
-                            analyzePageForMp4()
-                        }, 1500)
-                    },
-                    modifier = Modifier.size(44.dp),  // 36dp → 44dp로 증가
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
-                ) {
-                    if (isAnalyzing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "새로고침",
-                            modifier = Modifier.size(20.dp),  // 18dp → 20dp로 증가
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            updateNavigationState()
+                            Log.d("Navigation", "뒤로가기 후 상태 - canGoBack: $canGoBack, canGoForward: $canGoForward")
+                        }, 100)
+                    }
+                }
+            },
+            onGoForward = {
+                Log.d("Navigation", "앞으로가기 클릭 - canGoForward: $canGoForward, fullscreenWebView: ${fullscreenWebView != null}")
+                fullscreenWebView?.let { webView ->
+                    Log.d("Navigation", "WebView canGoForward: ${webView.canGoForward()}")
+                    if (webView.canGoForward()) {
+                        webView.goForward()
+                        // 즉시 네비게이션 상태 업데이트
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            updateNavigationState()
+                            Log.d("Navigation", "앞으로가기 후 상태 - canGoBack: $canGoBack, canGoForward: $canGoForward")
+                        }, 100)
+                    }
+                }
+            },
+            onRefresh = {
+                fullscreenWebView?.reload()
+                Handler(Looper.getMainLooper()).postDelayed({
+                    analyzePageForMp4()
+                }, 1500)
+            },
+            onShowMp4List = { showMp4List = !showMp4List },
+            onSwitchTab = ::switchTab,
+            onCloseTab = ::closeTab,
+            onDownloadVideo = ::downloadVideo,
+            onExitFullscreen = { 
+                // 전체화면 WebView의 상태 저장
+                fullscreenWebView?.let { fsWebView ->
+                    val bundle = Bundle()
+                    fsWebView.saveState(bundle)
+                    webViewState = bundle
+                    
+                    // 현재 URL도 업데이트
+                    fsWebView.url?.let { url ->
+                        if (url != currentUrl && 
+                            !url.startsWith("data:") && 
+                            !url.startsWith("about:") &&
+                            url != "about:blank") {
+                            currentUrl = url
+                            urlText = url
+                        }
+                    }
+                }
+                
+                // 전체화면 모드 종료 후 네비게이션 상태 업데이트
+                isWebViewFullscreen = false
+                
+                // 상태 업데이트를 위한 지연 실행
+                Handler(Looper.getMainLooper()).postDelayed({
+                    updateNavigationState()
+                }, 100)
+            },
+            webViewContent = {
+                // 전체화면 WebView
+                if (currentUrl.isNotEmpty()) {
+                    AndroidView(
+                        factory = { context ->
+                            WebView(context).apply {
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                                        url?.let { newUrl ->
+                                            updateUrlIfChanged(newUrl)
+                                        }
+                                        return false
+                                    }
+
+                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                        super.onPageStarted(view, url, favicon)
+                                        url?.let { newUrl ->
+                                            updateUrlIfChanged(newUrl)
+                                        }
+                                    }
+
+                                    override fun onPageFinished(view: WebView?, url: String?) {
+                                        super.onPageFinished(view, url)
+                                        url?.let { newUrl ->
+                                            updateUrlIfChanged(newUrl)
+                                        }
+                                        
+                                        // 페이지 로딩 완료 후 MP4 감지
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            analyzePageForMp4()
+                                        }, 1000)
+                                    }
+                                }
+                                webChromeClient = object : WebChromeClient() {
+                                    override fun onReceivedTitle(view: WebView?, title: String?) {
+                                        super.onReceivedTitle(view, title)
+                                        // 탭 제목 업데이트
+                                        title?.let { 
+                                            currentTab?.let { tab ->
+                                                tabs = tabs.map { 
+                                                    if (it.id == tab.id) it.copy(title = title.take(15)) 
+                                                    else it 
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                settings.loadWithOverviewMode = true
+                                settings.useWideViewPort = true
+                                
+                                // 전체화면 WebView 참조 설정
+                                fullscreenWebView = this
+                                
+                                // 저장된 WebView 상태 복원 (히스토리 포함)
+                                webViewState?.let { bundle ->
+                                    restoreState(bundle)
+                                    // 상태 복원 후 네비게이션 상태 업데이트
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        updateNavigationState()
+                                    }, 500)
+                                } ?: run {
+                                    // 저장된 상태가 없으면 현재 URL로 로드
+                                    val syncUrl = webView?.url ?: currentUrl
+                                    if (syncUrl.isNotEmpty()) {
+                                        this.loadUrl(syncUrl)
+                                        // URL 로드 후 네비게이션 상태 업데이트
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            updateNavigationState()
+                                        }, 1000)
+                                    }
+                                }
+                            }
+                        },
+                        update = { view ->
+                            if (currentUrl.isNotEmpty() && view.url != currentUrl) {
+                                view.loadUrl(currentUrl)
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "웹 페이지가 로드되지 않았습니다",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-
-                // 앞으로가기 버튼
-                FloatingActionButton(
-                    onClick = { 
-                        if (canGoForward && fullscreenWebView?.canGoForward() == true) {
-                            fullscreenWebView?.goForward()
-                            handleNavigation(fullscreenWebView)
-                        }
-                    },
-                    modifier = Modifier.size(44.dp),  // 36dp → 44dp로 증가
-                    containerColor = if (canGoForward) 
-                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
-                    else 
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowForward,
-                        contentDescription = "앞으로가기",
-                        modifier = Modifier.size(20.dp),  // 18dp → 20dp로 증가
-                        tint = if (canGoForward) 
-                            MaterialTheme.colorScheme.onSecondaryContainer 
-                        else 
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                }
-
-                // 전체화면 종료 버튼
-                FloatingActionButton(
-                    onClick = { 
-                        // 전체화면 WebView의 상태 저장
-                        fullscreenWebView?.let { fsWebView ->
-                            val bundle = Bundle()
-                            fsWebView.saveState(bundle)
-                            webViewState = bundle
-                            
-                            // 현재 URL도 업데이트
-                            fsWebView.url?.let { url ->
-                                if (url != currentUrl && 
-                                    !url.startsWith("data:") && 
-                                    !url.startsWith("about:") &&
-                                    url != "about:blank") {
-                                    currentUrl = url
-                                    urlText = url
-                                }
-                            }
-                        }
-                        
-                        // 전체화면 모드 종료 후 네비게이션 상태 업데이트
-                        isWebViewFullscreen = false
-                        
-                        // 상태 업데이트를 위한 지연 실행
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            updateNavigationState()
-                        }, 100)
-                    },
-                    modifier = Modifier.size(44.dp),  // 36dp → 44dp로 증가
-                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "전체화면 종료",
-                        modifier = Modifier.size(20.dp),  // 18dp → 20dp로 증가
-                        tint = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                }
             }
-
-            // 우측 하단 URL 표시 및 버튼 영역 (수정: 안정적인 패딩)
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
-                    .padding(end = 16.dp, bottom = 48.dp),  // bottom 패딩 증가 (32dp → 48dp)
-                horizontalArrangement = Arrangement.spacedBy(12.dp),  // 버튼 간격 증가 (8dp → 12dp)
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                
-                // MP4 목록 버튼
-                FloatingActionButton(
-                    onClick = { showMp4List = !showMp4List },
-                    modifier = Modifier.size(44.dp),  // 36dp → 44dp로 증가
-                    containerColor = if (showMp4List) 
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
-                    else 
-                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.8f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "MP4 목록",
-                        modifier = Modifier.size(20.dp),  // 18dp → 20dp로 증가
-                        tint = if (showMp4List) 
-                            MaterialTheme.colorScheme.onPrimaryContainer 
-                        else 
-                            MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                }
-                
-                // URL 표시 및 편집 기능 (크기 축소)
-                URLDisplay(
-                    currentUrl = currentUrl,
-                    onUrlChange = { newUrl ->
-                        if (newUrl.isNotBlank()) {
-                            val url = if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
-                                "https://$newUrl"
-                            } else {
-                                newUrl
-                            }
-                            currentUrl = url
-                            urlText = url
-                            fullscreenWebView?.loadUrl(url)
-                            
-                            // 히스토리에 URL 추가 (중복 제거)
-                            if (!urlHistory.contains(url)) {
-                                urlHistory = urlHistory + url
-                            }
-                            
-                            // URL 변경 후 MP4 감지
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                analyzePageForMp4()
-                            }, 1000)
-                        }
-                    },
-                    modifier = Modifier,
-                    fillMaxSize = true,  // 편집 모드에서 전체 화면 사용을 위한 플래그
-                    urlHistory = urlHistory  // URL 히스토리 전달
-                )
-            }
-
-
-            
-            // MP4 목록 표시 다이얼로그
-            if (showMp4List) {
-                Mp4ListDialog(
-                    mp4Links = mp4Links,
-                    downloadingUrls = downloadingUrls,
-                    onDownload = { url -> downloadVideo(url) },
-                    onDismiss = { showMp4List = false }
-                )
-            }
-            
+        )
+        
+        // MP4 목록 표시 다이얼로그
+        if (showMp4List) {
+            Mp4ListDialog(
+                mp4Links = mp4Links,
+                downloadingUrls = downloadingUrls,
+                onDownload = { url -> downloadVideo(url) },
+                onDismiss = { showMp4List = false }
+            )
         }
+        
+        // 다운로드 결과 알림 팝업
+        if (showDownloadResult && downloadResultMessage != null) {
+            DownloadResultDialog(
+                message = downloadResultMessage!!,
+                onDismiss = { 
+                    showDownloadResult = false
+                    downloadResultMessage = null
+                }
+            )
+        }
+        
         return
     }
 
@@ -784,9 +866,19 @@ fun MainScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.Top
     ) {
+        // 탭바
+        TabBar(
+            tabs = tabs,
+            currentTabIndex = currentTabIndex,
+            onNewTab = ::addNewTab,
+            onCloseTab = ::closeTab,
+            onSwitchTab = ::switchTab,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
         // 앱 제목
         Text(
-            text = "Simple Web Video Downloader",
+            text = "Simple Web Video Downloader v5.6",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(bottom = 12.dp),
             maxLines = 1,
@@ -1160,7 +1252,20 @@ fun MainScreen(
                                         }, 1000)
                                     }
                                 }
-                                webChromeClient = WebChromeClient()
+                                webChromeClient = object : WebChromeClient() {
+                                    override fun onReceivedTitle(view: WebView?, title: String?) {
+                                        super.onReceivedTitle(view, title)
+                                        // 탭 제목 업데이트
+                                        title?.let { 
+                                            currentTab?.let { tab ->
+                                                tabs = tabs.map { 
+                                                    if (it.id == tab.id) it.copy(title = title.take(15)) 
+                                                    else it 
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
                                 settings.loadWithOverviewMode = true
@@ -1176,7 +1281,7 @@ fun MainScreen(
                                     // 저장된 상태가 없으면 현재 URL로 로드
                                     val syncUrl = fullscreenWebView?.url ?: currentUrl
                                     if (syncUrl.isNotEmpty()) {
-                                        loadUrl(syncUrl)
+                                        this.loadUrl(syncUrl)
                                     }
                                 }
                             }
@@ -1215,9 +1320,17 @@ fun MainScreen(
                         // 뒤로가기 버튼
                         FloatingActionButton(
                             onClick = { 
-                                if (canGoBack && webView?.canGoBack() == true) {
-                                    webView?.goBack()
-                                    handleNavigation(webView)
+                                Log.d("Navigation", "일반모드 뒤로가기 클릭 - canGoBack: $canGoBack, webView: ${webView != null}")
+                                webView?.let { view ->
+                                    Log.d("Navigation", "일반모드 WebView canGoBack: ${view.canGoBack()}")
+                                    if (view.canGoBack()) {
+                                        view.goBack()
+                                        // 즉시 네비게이션 상태 업데이트
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            updateNavigationState()
+                                            Log.d("Navigation", "일반모드 뒤로가기 후 상태 - canGoBack: $canGoBack, canGoForward: $canGoForward")
+                                        }, 100)
+                                    }
                                 }
                             },
                             modifier = Modifier.size(44.dp),
@@ -1266,9 +1379,17 @@ fun MainScreen(
                         // 앞으로가기 버튼
                         FloatingActionButton(
                             onClick = { 
-                                if (canGoForward && webView?.canGoForward() == true) {
-                                    webView?.goForward()
-                                    handleNavigation(webView)
+                                Log.d("Navigation", "일반모드 앞으로가기 클릭 - canGoForward: $canGoForward, webView: ${webView != null}")
+                                webView?.let { view ->
+                                    Log.d("Navigation", "일반모드 WebView canGoForward: ${view.canGoForward()}")
+                                    if (view.canGoForward()) {
+                                        view.goForward()
+                                        // 즉시 네비게이션 상태 업데이트
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            updateNavigationState()
+                                            Log.d("Navigation", "일반모드 앞으로가기 후 상태 - canGoBack: $canGoBack, canGoForward: $canGoForward")
+                                        }, 100)
+                                    }
                                 }
                             },
                             modifier = Modifier.size(44.dp),
@@ -1322,6 +1443,17 @@ fun MainScreen(
                     }
                 }
             }
+        }
+        
+        // 다운로드 결과 알림 팝업 (일반 모드)
+        if (showDownloadResult && downloadResultMessage != null) {
+            DownloadResultDialog(
+                message = downloadResultMessage!!,
+                onDismiss = { 
+                    showDownloadResult = false
+                    downloadResultMessage = null
+                }
+            )
         }
     }
 }
@@ -1659,3 +1791,706 @@ fun Mp4ListDialog(
     }
 }
 
+// 탭바 컴포넌트
+@Composable
+fun TabBar(
+    tabs: List<Tab>,
+    currentTabIndex: Int,
+    onNewTab: () -> Unit,
+    onCloseTab: (Int) -> Unit,
+    onSwitchTab: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 탭 목록
+            LazyRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                itemsIndexed(tabs) { index, tab ->
+                    TabItem(
+                        tab = tab,
+                        isSelected = index == currentTabIndex,
+                        onClick = { onSwitchTab(index) },
+                        onClose = if (tabs.size > 1) { { onCloseTab(index) } } else null
+                    )
+                }
+            }
+            
+            // 새 탭 버튼
+            IconButton(
+                onClick = onNewTab,
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add, 
+                    contentDescription = "새 탭",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            // 탭 개수 표시
+            Card(
+                modifier = Modifier.padding(start = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text(
+                    text = "${tabs.size}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+// 개별 탭 아이템 컴포넌트
+@Composable
+fun TabItem(
+    tab: Tab,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onClose: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .clickable { onClick() }
+            .widthIn(min = 100.dp, max = 180.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) 
+                MaterialTheme.colorScheme.primaryContainer 
+            else 
+                MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = if (tab.title.isNotBlank() && tab.title != "새 탭") tab.title else "새 탭",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 11.sp,
+                    color = if (isSelected) 
+                        MaterialTheme.colorScheme.onPrimaryContainer 
+                    else 
+                        MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = tab.url.take(25) + if (tab.url.length > 25) "..." else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 9.sp
+                )
+            }
+            
+            onClose?.let {
+                IconButton(
+                    onClick = it,
+                    modifier = Modifier.size(18.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "탭 닫기",
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    }
+}
+
+// 전체화면 UI 컴포넌트
+@Composable
+fun FullscreenUI(
+    tabs: List<Tab>,
+    currentTabIndex: Int,
+    currentUrl: String,
+    urlText: String,
+    onUrlTextChange: (String) -> Unit,
+    onLoadUrl: (String) -> Unit,
+    showTabOverview: Boolean,
+    onShowTabOverview: (Boolean) -> Unit,
+    onAddNewTab: () -> Unit,
+    canGoBack: Boolean,
+    canGoForward: Boolean,
+    isAnalyzing: Boolean,
+    mp4Links: List<String>,
+    downloadingUrls: Set<String>,
+    urlHistory: List<String>,
+    onGoBack: () -> Unit,
+    onGoForward: () -> Unit,
+    onRefresh: () -> Unit,
+    onShowMp4List: () -> Unit,
+    onSwitchTab: (Int) -> Unit,
+    onCloseTab: (Int) -> Unit,
+    onDownloadVideo: (String) -> Unit,
+    onExitFullscreen: () -> Unit,
+    webViewContent: @Composable () -> Unit
+) {
+    var isEditingUrl by remember { mutableStateOf(false) }
+    var editUrlText by remember { mutableStateOf("") }
+    var showHistoryDropdown by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (showTabOverview) {
+            // 탭 오버뷰 화면
+            TabOverviewScreen(
+                tabs = tabs,
+                currentTabIndex = currentTabIndex,
+                onTabSelected = { index ->
+                    onSwitchTab(index)
+                    onShowTabOverview(false)
+                },
+                onTabClosed = { index ->
+                    onCloseTab(index)
+                    if (tabs.size == 1) {
+                        onShowTabOverview(false)
+                    }
+                },
+                onAddNewTab = {
+                    onAddNewTab()
+                    onShowTabOverview(false)
+                },
+                onBackToWebView = { onShowTabOverview(false) }
+            )
+        } else {
+            // 웹뷰 화면
+            Column(modifier = Modifier.fillMaxSize()) {
+                // 상단 바
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    tonalElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 좌측: URL 표시/편집
+                        if (isEditingUrl) {
+                            OutlinedTextField(
+                                value = editUrlText,
+                                onValueChange = { editUrlText = it },
+                                modifier = Modifier.weight(1f),
+                                placeholder = { Text("URL 입력") },
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                                keyboardActions = KeyboardActions(
+                                    onGo = {
+                                        if (editUrlText.isNotBlank()) {
+                                            val url = if (!editUrlText.startsWith("http")) {
+                                                "https://$editUrlText"
+                                            } else {
+                                                editUrlText
+                                            }
+                                            onLoadUrl(url)
+                                        }
+                                        isEditingUrl = false
+                                    }
+                                ),
+                                trailingIcon = {
+                                    Row {
+                                        IconButton(
+                                            onClick = {
+                                                if (editUrlText.isNotBlank()) {
+                                                    val url = if (!editUrlText.startsWith("http")) {
+                                                        "https://$editUrlText"
+                                                    } else {
+                                                        editUrlText
+                                                    }
+                                                    onLoadUrl(url)
+                                                }
+                                                isEditingUrl = false
+                                            }
+                                        ) {
+                                            Icon(Icons.Default.Check, "확인")
+                                        }
+                                        IconButton(onClick = { isEditingUrl = false }) {
+                                            Icon(Icons.Default.Close, "취소")
+                                        }
+                                        IconButton(onClick = { showHistoryDropdown = !showHistoryDropdown }) {
+                                            Icon(Icons.Default.Info, "기록")
+                                        }
+                                    }
+                                },
+                                singleLine = true
+                            )
+                        } else {
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        editUrlText = currentUrl
+                                        isEditingUrl = true
+                                    },
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    text = currentUrl.takeIf { it.isNotEmpty() } ?: "URL을 입력하세요",
+                                    modifier = Modifier.padding(12.dp),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        // 우측: 새 탭 추가, 탭 개수, 전체화면 종료 (3개 버튼)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // 1. 새 탭 추가 버튼
+                            IconButton(onClick = onAddNewTab) {
+                                Icon(
+                                    Icons.Default.Add, 
+                                    contentDescription = "새 탭",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            
+                            // 2. 탭 개수 (탭 오버뷰로 이동)
+                            Surface(
+                                modifier = Modifier.clickable { onShowTabOverview(true) },
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.primary
+                            ) {
+                                Text(
+                                    text = tabs.size.toString(),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                            
+                            // 3. 전체화면 종료 버튼
+                            IconButton(onClick = onExitFullscreen) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "전체화면 종료",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+
+                    // URL 히스토리 드롭다운
+                    if (showHistoryDropdown && urlHistory.isNotEmpty()) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(8.dp)
+                        ) {
+                            items(urlHistory.reversed()) { url ->
+                                Text(
+                                    text = url,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onLoadUrl(url)
+                                            showHistoryDropdown = false
+                                        }
+                                        .padding(12.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 웹뷰 콘텐츠
+                Box(modifier = Modifier.weight(1f)) {
+                    webViewContent()
+                }
+
+                // 하단 네비게이션 바
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom)),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    tonalElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 1. 뒤로가기
+                        IconButton(
+                            onClick = onGoBack,
+                            enabled = canGoBack
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                "뒤로가기",
+                                tint = if (canGoBack) 
+                                    MaterialTheme.colorScheme.onSurface 
+                                else 
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            )
+                        }
+
+                        // 2. 새로고침 및 MP4 감지
+                        IconButton(
+                            onClick = onRefresh
+                        ) {
+                            if (isAnalyzing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                Icon(Icons.Default.Refresh, "새로고침")
+                            }
+                        }
+
+                        // 3. MP4 목록 보기
+                        IconButton(
+                            onClick = onShowMp4List
+                        ) {
+                            Icon(Icons.Default.PlayArrow, "MP4 목록")
+                        }
+
+                        // 4. 최근 방문한 페이지 목록
+                        IconButton(
+                            onClick = { showHistoryDropdown = !showHistoryDropdown },
+                            enabled = urlHistory.isNotEmpty()
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                "방문 기록",
+                                tint = if (urlHistory.isNotEmpty()) 
+                                    MaterialTheme.colorScheme.onSurface 
+                                else 
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            )
+                        }
+
+                        // 5. 앞으로가기
+                        IconButton(
+                            onClick = onGoForward,
+                            enabled = canGoForward
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowForward,
+                                "앞으로가기",
+                                tint = if (canGoForward) 
+                                    MaterialTheme.colorScheme.onSurface 
+                                else 
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 전체화면 종료 버튼은 이제 상단 바에 통합됨
+    }
+}
+
+// 탭 오버뷰 화면
+@Composable
+fun TabOverviewScreen(
+    tabs: List<Tab>,
+    currentTabIndex: Int,
+    onTabSelected: (Int) -> Unit,
+    onTabClosed: (Int) -> Unit,
+    onAddNewTab: () -> Unit,
+    onBackToWebView: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.systemBars)
+            .padding(16.dp)
+    ) {
+        // 상단 바
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "탭 ${tabs.size}개",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            IconButton(onClick = onBackToWebView) {
+                Icon(Icons.Default.Close, "닫기")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 탭 그리드
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 기존 탭들
+            itemsIndexed(tabs) { index, tab ->
+                TabCard(
+                    tab = tab,
+                    isCurrentTab = index == currentTabIndex,
+                    onClick = { onTabSelected(index) },
+                    onClose = { onTabClosed(index) }
+                )
+            }
+
+            // 새 탭 추가 카드
+            item {
+                AddTabCard(onClick = onAddNewTab)
+            }
+        }
+    }
+}
+
+// 탭 카드 컴포넌트
+@Composable
+fun TabCard(
+    tab: Tab,
+    isCurrentTab: Boolean,
+    onClick: () -> Unit,
+    onClose: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCurrentTab) 
+                MaterialTheme.colorScheme.primaryContainer 
+            else 
+                MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = tab.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isCurrentTab) 
+                        MaterialTheme.colorScheme.onPrimaryContainer 
+                    else 
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Text(
+                    text = tab.url.takeIf { it.isNotEmpty() } ?: "새 탭",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isCurrentTab) 
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) 
+                    else 
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+
+            // 닫기 버튼
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.align(Alignment.TopEnd)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "탭 닫기",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+
+            // 현재 탭 표시
+            if (isCurrentTab) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    Text(
+                        text = "현재",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        }
+    }
+}
+
+// 새 탭 추가 카드
+@Composable
+fun AddTabCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
+        border = BorderStroke(
+            1.dp, 
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+        )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    "새 탭 추가",
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "새 탭",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+    }
+}
+
+// 다운로드 결과 알림 다이얼로그
+@Composable
+fun DownloadResultDialog(
+    message: String,
+    onDismiss: () -> Unit
+) {
+    // 자동으로 사라지도록 LaunchedEffect 사용
+    LaunchedEffect(message) {
+        kotlinx.coroutines.delay(if (message.contains("실패")) 5000 else 3000)
+        onDismiss()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f))
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .padding(32.dp)
+                .widthIn(min = 280.dp, max = 400.dp)
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null
+                ) { /* 카드 클릭 시 이벤트 전파 방지 */ },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 아이콘 (성공/실패에 따라)
+                Icon(
+                    imageVector = if (message.contains("실패")) Icons.Default.Close else Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = if (message.contains("실패")) 
+                        MaterialTheme.colorScheme.error 
+                    else 
+                        MaterialTheme.colorScheme.primary
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // 메시지
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                // 확인 버튼
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (message.contains("실패")) 
+                            MaterialTheme.colorScheme.error 
+                        else 
+                            MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("확인")
+                }
+            }
+        }
+    }
+}
