@@ -1,0 +1,4452 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.cursor/
+  rules/
+    android-development-best-practices.mdc
+    kotlin-compose-safety.mdc
+    prompt-engineering-guidelines.mdc
+app/
+  src/
+    androidTest/
+      java/
+        com/
+          swvd/
+            simplewebvideodownloader/
+              ExampleInstrumentedTest.kt
+    main/
+      java/
+        com/
+          swvd/
+            simplewebvideodownloader/
+              download/
+                DownloadHandler.kt
+              models/
+                Tab.kt
+              ui/
+                components/
+                  DialogComponents.kt
+                  TabComponents.kt
+                screens/
+                  FullscreenScreen.kt
+                theme/
+                  Color.kt
+                  Theme.kt
+                  Type.kt
+              utils/
+                FullscreenManager.kt
+              webview/
+                Mp4Analyzer.kt
+              MainActivity.kt
+      res/
+        drawable/
+          ic_launcher_background.xml
+          ic_launcher_foreground.xml
+        mipmap-anydpi-v26/
+          ic_launcher.xml
+        values/
+          colors.xml
+          strings.xml
+          themes.xml
+        xml/
+          backup_rules.xml
+          data_extraction_rules.xml
+      AndroidManifest.xml
+    test/
+      java/
+        com/
+          swvd/
+            simplewebvideodownloader/
+              ExampleUnitTest.kt
+  .gitignore
+  build.gradle.kts
+  proguard-rules.pro
+gradle/
+  wrapper/
+    gradle-wrapper.properties
+  libs.versions.toml
+.gitignore
+build.gradle.kts
+CLAUDE.md
+gradle.properties
+gradlew
+gradlew.bat
+LICENSE
+README.md
+settings.gradle.kts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".cursor/rules/android-development-best-practices.mdc">
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Android Development Best Practices & Error Prevention
+
+## Critical Function Context Awareness
+
+### 1. Function Reference vs Lambda Distinction
+**ALWAYS** verify function signature compatibility when using function references (`::functionName`):
+- ❌ WRONG: `onLoadUrl = ::loadUrl` when loadUrl() takes no parameters but callback expects (String) -> Unit
+- ✅ CORRECT: `onLoadUrl = { url -> loadUrl(url) }` or implement proper parameter handling
+
+**Rule**: Before using `::` function reference, verify parameter count and types match exactly.
+
+### 2. Composable Context Validation
+**NEVER** call @Composable functions outside of @Composable context:
+- ❌ WRONG: Calling Composable functions inside AndroidView factory lambdas
+- ✅ CORRECT: Use WebView.loadUrl() method explicitly with `this.loadUrl(url)`
+
+**Template for WebView factory**:
+```kotlin
+AndroidView(
+    factory = { context ->
+        WebView(context).apply {
+            // Use this.loadUrl() for WebView method
+            // NOT loadUrl() which might reference @Composable function
+        }
+    }
+)
+```
+
+## Build System & Import Management
+
+### 3. Progressive Import Addition
+When adding new UI components, add imports incrementally:
+1. First add core UI imports (BorderStroke, icons)
+2. Test compilation after each major component addition
+3. Never add all imports at once without verification
+
+**Required imports checklist for new UI components**:
+- `androidx.compose.foundation.BorderStroke` for Card borders
+- `androidx.compose.material.icons.filled.*` for specific icons
+- `androidx.compose.foundation.lazy.grid.*` for grid layouts
+
+### 4. Version Management Strategy
+**ALWAYS** increment version numbers when adding major features:
+- Minor UI changes: patch version (5.2.1)
+- New feature components: minor version (5.3.0)
+- Major UI overhauls: major version (6.0.0)
+
+## UI Component Architecture
+
+### 5. Component Parameter Validation
+When creating new @Composable functions with many parameters:
+1. **ALWAYS** verify all callback functions are properly typed
+2. Use explicit lambda syntax for complex callbacks
+3. Test component isolation before integration
+
+**Template for complex UI components**:
+```kotlin
+@Composable
+fun ComplexUI(
+    // State parameters first
+    state: UIState,
+    // Simple callbacks second  
+    onSimpleAction: () -> Unit,
+    // Complex callbacks with explicit types
+    onComplexAction: (param: Type) -> Unit,
+    // Content composables last
+    content: @Composable () -> Unit
+)
+```
+
+### 6. State Management Validation
+Before implementing new UI features:
+1. Identify ALL state variables needed
+2. Define state update functions explicitly
+3. Verify state synchronization between components
+
+**State checklist for tabbed UI**:
+- Tab list state
+- Current tab index
+- Tab overview visibility
+- URL editing state
+- History dropdown state
+
+## Error Recovery Patterns
+
+### 7. Compilation Error Debugging Process
+When compilation fails:
+1. **STOP** and read error messages completely
+2. Identify error categories: type mismatch, context issues, missing imports
+3. Fix ONE category at a time
+4. Test compilation after each fix category
+
+### 8. WebView Integration Safety
+**ALWAYS** distinguish between:
+- WebView native methods (use `this.methodName()`)
+- Custom Composable functions (use proper context)
+- State management functions (verify @Composable context)
+
+## Code Review Checklist
+
+Before committing new UI features:
+- [ ] All function references use correct syntax
+- [ ] No @Composable functions called outside @Composable context  
+- [ ] All required imports are present
+- [ ] Version number is incremented appropriately
+- [ ] Build succeeds without errors
+- [ ] UI components are properly isolated and testable
+
+## Emergency Rollback Protocol
+
+If major UI changes cause compilation issues:
+1. **IMMEDIATELY** test build after each significant change
+2. Use git tags for stable versions (`v5.1`, `v5.2`)
+3. Keep incremental commits for easy rollback
+4. Never combine multiple major changes in single commit
+
+**Rollback command template**:
+```bash
+git reset --hard v[last-working-version]
+git checkout -b fix/[issue-description]
+# Implement changes incrementally
+```
+
+## Learning Integration
+
+### Apply Error Analysis
+1. **Document** each error type encountered
+2. **Categorize** errors: syntax, context, architecture
+3. **Create** specific rules for each error category
+4. **Review** rules before similar development tasks
+
+This rule system ensures systematic error prevention and promotes clean, maintainable Android Compose code architecture.
+</file>
+
+<file path=".cursor/rules/kotlin-compose-safety.mdc">
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Kotlin Compose Safety Guidelines & Error Prevention
+
+## Function Reference Safety Patterns
+
+### 1. Method Reference Validation Protocol
+**CRITICAL**: Always verify parameter signatures before using `::` syntax
+
+**Safe Pattern**:
+```kotlin
+// ❌ DANGEROUS - Parameter mismatch
+onCallback = ::functionWithNoParams  // when callback expects (String) -> Unit
+
+// ✅ SAFE - Explicit lambda with proper parameters
+onCallback = { param -> functionWithNoParams() }
+// OR implement function to accept parameters
+onCallback = ::functionWithCorrectSignature
+```
+
+**Verification Checklist**:
+- [ ] Count parameters: callback signature vs function signature
+- [ ] Check parameter types: exact type matching required
+- [ ] Verify return types: Unit vs specific return types
+- [ ] Test with simple lambda first, then optimize to method reference
+
+### 2. Composable Context Isolation
+**NEVER** mix Android View methods with Composable functions
+
+**Reference pattern in [MainActivity.kt](mdc:app/src/main/java/com/swvd/simplewebvideodownloader/MainActivity.kt)**:
+```kotlin
+AndroidView(
+    factory = { context ->
+        WebView(context).apply {
+            // ✅ CORRECT - Use Android View methods explicitly
+            this.loadUrl(url)
+            
+            // ❌ WRONG - Don't call Composable functions here
+            // loadUrl(url)  // This might reference @Composable function
+        }
+    }
+)
+```
+
+## State Management Safety
+
+### 3. State Synchronization Validation
+When managing complex UI state, ensure all state variables are properly initialized:
+
+**Required state variables for complex UI (based on FullscreenUI implementation)**:
+```kotlin
+// Tab management state
+var tabs by remember { mutableStateOf(listOf(Tab())) }
+var currentTabIndex by remember { mutableIntStateOf(0) }
+
+// UI mode state  
+var showTabOverview by remember { mutableStateOf(false) }
+var isEditingUrl by remember { mutableStateOf(false) }
+
+// Content state
+var urlText by remember { mutableStateOf("") }
+var currentUrl by remember { mutableStateOf("") }
+```
+
+### 4. Lambda Parameter Handling
+For complex callback implementations, use explicit parameter handling:
+
+**Template from successful FullscreenUI implementation**:
+```kotlin
+onLoadUrl = { url ->
+    // Step 1: Input validation and URL formatting
+    val finalUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        "https://$url"
+    } else {
+        url
+    }
+    
+    // Step 2: State updates
+    currentUrl = finalUrl
+    urlText = finalUrl
+    
+    // Step 3: Complex state synchronization
+    currentTab?.let { tab ->
+        tabs = tabs.map {
+            if (it.id == tab.id) it.copy(url = finalUrl)
+            else it
+        }
+    }
+    
+    // Step 4: Side effects (WebView, history, etc.)
+    fullscreenWebView?.loadUrl(finalUrl)
+    
+    // Step 5: Async operations
+    Handler(Looper.getMainLooper()).postDelayed({
+        analyzePageForMp4()
+    }, 1000)
+}
+```
+
+## Import Management Safety
+
+### 5. Progressive Import Strategy
+Add imports in dependency order to avoid missing import errors:
+
+**Phase 1 - Foundation**:
+```kotlin
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+```
+
+**Phase 2 - Layout**:
+```kotlin
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+```
+
+**Phase 3 - Material**:
+```kotlin
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.*
+```
+
+### 6. Icon Compatibility Safety
+**WARNING**: Some Material Icons are deprecated. Use safe alternatives:
+
+```kotlin
+// ⚠️  DEPRECATED (causes warnings)
+Icons.Filled.ArrowBack
+Icons.Filled.ArrowForward
+
+// ✅ SAFE ALTERNATIVES
+Icons.Default.ArrowBack  // Generic version
+Icons.AutoMirrored.Filled.ArrowBack  // New recommended version
+```
+
+## Component Architecture Safety
+
+### 7. Large Component Parameter Validation
+For components with many parameters (like FullscreenUI), group parameters logically:
+
+**Safe parameter grouping pattern**:
+```kotlin
+@Composable
+fun ComplexComponent(
+    // Group 1: Core state
+    tabs: List<Tab>,
+    currentTabIndex: Int,
+    currentUrl: String,
+    
+    // Group 2: UI state  
+    showOverview: Boolean,
+    isEditing: Boolean,
+    
+    // Group 3: Simple callbacks
+    onSimpleAction: () -> Unit,
+    onStateChange: (Boolean) -> Unit,
+    
+    // Group 4: Complex callbacks with explicit types
+    onComplexAction: (String) -> Unit,
+    onMultiParamAction: (Int, String) -> Unit,
+    
+    // Group 5: Composable content
+    content: @Composable () -> Unit
+)
+```
+
+### 8. WebView Integration Safety
+**ALWAYS** distinguish between WebView instance methods and app functions:
+
+```kotlin
+// ✅ SAFE - WebView instance method
+webView.loadUrl(url)
+this.loadUrl(url)  // Inside WebView.apply block
+
+// ❌ DANGEROUS - Might reference wrong function
+loadUrl(url)  // Could be Composable function
+
+// ✅ SAFE - App function with proper context
+loadUrlInApp(url)  // Clear naming prevents confusion
+```
+
+## Error Recovery Patterns
+
+### 9. Compilation Error Triage
+When build fails, fix errors in this priority order:
+
+1. **Import errors** - Missing or incorrect imports
+2. **Type mismatch errors** - Function signature incompatibilities  
+3. **Context errors** - @Composable function calls in wrong context
+4. **Scope errors** - Variable access outside proper scope
+
+### 10. Git Safety for Complex UI Changes
+Before implementing complex UI features:
+
+```bash
+# Create feature branch
+git checkout -b feature/new-ui-component
+
+# Commit working state first
+git add .
+git commit -m "Working state before UI changes"
+
+# Tag for easy rollback
+git tag before-ui-changes
+
+# Implement changes incrementally with frequent commits
+git commit -m "Add basic component structure"
+git commit -m "Add state management"  
+git commit -m "Add interactions"
+```
+
+## Testing & Validation Safety
+
+### 11. Incremental Build Validation
+After each major change:
+- [ ] Clean build: `./gradlew clean`
+- [ ] Compile check: `./gradlew compileDebugKotlin`
+- [ ] Full build: `./gradlew assembleDebug`
+- [ ] Runtime test: Install and basic functionality check
+
+### 12. Component Isolation Testing
+Before integrating complex components:
+1. Create minimal test implementation
+2. Verify basic rendering
+3. Test state changes
+4. Validate callbacks
+5. Check error conditions
+
+This safety framework prevents common Kotlin Compose errors and ensures reliable development progression.
+</file>
+
+<file path=".cursor/rules/prompt-engineering-guidelines.mdc">
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Prompt Engineering Guidelines for AI-Assisted Development
+
+## Structured Communication Patterns
+
+### 1. Requirement Specification Template
+When requesting new features, ALWAYS use this structure:
+
+```
+CONTEXT: [Current state/version]
+GOAL: [Specific desired outcome]
+CONSTRAINTS: [Technical limitations, existing architecture]
+ACCEPTANCE CRITERIA: [Measurable success conditions]
+PRIORITY: [Critical/High/Medium/Low]
+```
+
+**Example**:
+```
+CONTEXT: v5.2 with basic tab functionality
+GOAL: Full-screen UI with 5-button navigation layout
+CONSTRAINTS: Must preserve existing WebView functionality
+ACCEPTANCE CRITERIA: URL editing, tab overview, 5 navigation buttons working
+PRIORITY: High
+```
+
+### 2. Progressive Feature Development Protocol
+**NEVER** request complex features in single iteration:
+
+1. **Phase 1**: Core structure and basic UI
+2. **Phase 2**: State management and interactions  
+3. **Phase 3**: Advanced features and polish
+4. **Phase 4**: Testing and optimization
+
+### 3. Error Context Enrichment
+When reporting errors, provide:
+- **Exact error messages** (copy-paste)
+- **File location** (line numbers)
+- **Expected behavior** vs actual behavior
+- **Recent changes** that might be related
+
+## AI Collaboration Optimization
+
+### 4. Code Review Request Format
+Structure code review requests with specific focus areas:
+
+```
+REVIEW FOCUS:
+- [ ] Function signature compatibility
+- [ ] @Composable context safety
+- [ ] Import completeness
+- [ ] State management patterns
+- [ ] Error handling coverage
+
+SPECIFIC CONCERNS:
+[List specific areas of uncertainty]
+```
+
+### 5. Incremental Validation Strategy
+**ALWAYS** request AI to:
+1. Validate approach BEFORE implementation
+2. Break complex changes into reviewable chunks
+3. Provide checkpoint verification steps
+4. Include rollback instructions for each phase
+
+### 6. Knowledge Transfer Documentation
+When AI provides solutions, request:
+- **Why** this approach was chosen
+- **What** alternatives were considered
+- **How** to modify for similar future cases
+- **When** this pattern should/shouldn't be used
+
+## Quality Assurance Integration
+
+### 7. Pre-Implementation Verification
+Before requesting implementation, AI should confirm:
+- [ ] Understanding of current architecture (reference [MainActivity.kt](mdc:app/src/main/java/com/swvd/simplewebvideodownloader/MainActivity.kt))
+- [ ] Compatibility with existing build system (reference [build.gradle.kts](mdc:app/build.gradle.kts))
+- [ ] Import requirements identification
+- [ ] Testing strategy for new features
+
+### 8. Build Verification Protocol
+After each significant change, request AI to:
+1. Predict potential compilation issues
+2. Verify all required imports are present
+3. Check function signature compatibility
+4. Validate @Composable context usage
+
+## Learning & Adaptation Patterns
+
+### 9. Error Pattern Recognition
+Maintain ongoing dialogue about:
+- **Recurring error types** and their root causes
+- **Successful patterns** that prevented errors
+- **Architecture decisions** that simplified development
+- **Tool usage** that improved efficiency
+
+### 10. Contextual Memory Management
+Help AI maintain context by:
+- **Referencing** previous successful solutions
+- **Linking** current issues to past similar problems
+- **Updating** AI on project evolution and changes
+- **Confirming** AI's understanding before complex operations
+
+## Communication Efficiency Rules
+
+### 11. Clarity Over Brevity
+- Use specific technical terms correctly
+- Provide complete context rather than assuming knowledge
+- Ask for clarification when requirements are ambiguous
+- Confirm understanding before proceeding with implementation
+
+### 12. Iterative Refinement Process
+Structure conversations for continuous improvement:
+1. **Initial request** with clear requirements
+2. **AI proposal** with approach explanation
+3. **Human feedback** with specific adjustments
+4. **Refined solution** with implementation plan
+5. **Validation** of results and lessons learned
+
+## Meta-Learning Integration
+
+### 13. Rule Evolution Protocol
+Regularly update these rules based on:
+- **New error patterns** discovered in development
+- **Successful collaboration** techniques that emerge
+- **Tool capabilities** that improve over time
+- **Project complexity** changes requiring adaptation
+
+### 14. Knowledge Consolidation
+After major development phases:
+- Document successful patterns for reuse
+- Identify ineffective approaches to avoid
+- Update architectural guidelines based on experience
+- Create project-specific rule extensions
+
+This prompt engineering framework ensures efficient, error-free AI-assisted development while building cumulative knowledge for future projects.
+</file>
+
+<file path="app/src/androidTest/java/com/swvd/simplewebvideodownloader/ExampleInstrumentedTest.kt">
+package com.swvd.simplewebvideodownloader
+
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.ext.junit.runners.AndroidJUnit4
+
+import org.junit.Test
+import org.junit.runner.RunWith
+
+import org.junit.Assert.*
+
+/**
+ * Instrumented test, which will execute on an Android device.
+ *
+ * See [testing documentation](http://d.android.com/tools/testing).
+ */
+@RunWith(AndroidJUnit4::class)
+class ExampleInstrumentedTest {
+    @Test
+    fun useAppContext() {
+        // Context of the app under test.
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        assertEquals("com.swvd.simplewebvideodownloader", appContext.packageName)
+    }
+}
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/download/DownloadHandler.kt">
+package com.swvd.simplewebvideodownloader.download
+
+import android.Manifest
+import android.app.DownloadManager
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Environment
+import android.widget.Toast
+import androidx.core.content.ContextCompat
+
+/**
+ * 파일 다운로드 처리 클래스
+ * MP4 비디오 파일 다운로드 기능을 담당
+ */
+class DownloadHandler(private val context: Context) {
+    
+    /**
+     * 저장소 권한 확인
+     * Android 10 이하에서만 WRITE_EXTERNAL_STORAGE 권한 필요
+     */
+    fun checkStoragePermissions(): List<String> {
+        val permissions = mutableListOf<String>()
+        
+        // Android 10 (API 29) 이하에서만 WRITE_EXTERNAL_STORAGE 권한 필요
+        if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.P) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
+        
+        return permissions
+    }
+    
+    /**
+     * 파일 다운로드 실행
+     * @param url 다운로드할 파일 URL
+     * @param filename 저장할 파일명
+     */
+    fun downloadFile(url: String, filename: String) {
+        try {
+            // 파일명에서 특수문자 제거
+            val safeFilename = filename.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+
+            val request = DownloadManager.Request(Uri.parse(url))
+                .setTitle("비디오 다운로드")
+                .setDescription("$safeFilename 다운로드 중...")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setAllowedOverMetered(true)
+                .setAllowedOverRoaming(true)
+
+            // Android 10 이상에서는 Downloads 폴더에 저장
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, safeFilename)
+            } else {
+                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, safeFilename)
+            }
+
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val downloadId = downloadManager.enqueue(request)
+
+            Toast.makeText(context, "다운로드가 시작되었습니다\n파일: $safeFilename\nDownloads 폴더에 저장됩니다", Toast.LENGTH_LONG).show()
+
+        } catch (e: Exception) {
+            Toast.makeText(context, "다운로드 실패: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    /**
+     * URL 유효성 검사
+     * @param url 검사할 URL
+     * @return 유효한 URL인지 여부
+     */
+    fun isValidUrl(url: String): Boolean {
+        val cleanUrl = url.trim()
+        return cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")
+    }
+    
+    /**
+     * 파일명 생성
+     * URL에서 적절한 파일명을 생성
+     */
+    fun generateFilename(url: String): String {
+        return try {
+            val uri = Uri.parse(url.trim())
+            val pathSegment = uri.lastPathSegment
+            when {
+                pathSegment != null && pathSegment.contains(".mp4") -> pathSegment
+                pathSegment != null -> "${pathSegment}.mp4"
+                else -> "video_${System.currentTimeMillis()}.mp4"
+            }
+        } catch (e: Exception) {
+            "video_${System.currentTimeMillis()}.mp4"
+        }
+    }
+}
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/models/Tab.kt">
+package com.swvd.simplewebvideodownloader.models
+
+import java.util.UUID
+
+/**
+ * 탭 데이터 모델
+ * 브라우저 탭의 정보를 저장하는 데이터 클래스
+ */
+data class Tab(
+    val id: String = UUID.randomUUID().toString(),
+    var title: String = "새 탭",
+    var url: String = "https://www.google.com"
+)
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/ui/components/DialogComponents.kt">
+package com.swvd.simplewebvideodownloader.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+/**
+ * MP4 목록 다이얼로그
+ * 감지된 MP4 비디오 목록을 표시하고 다운로드할 수 있는 다이얼로그
+ */
+@Composable
+fun Mp4ListDialog(
+    mp4Links: List<String>,
+    downloadingUrls: Set<String>,
+    onDownload: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .heightIn(max = 400.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "MP4 비디오 목록",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "(${mp4Links.size}개)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (mp4Links.isEmpty()) {
+                    Text(
+                        text = "MP4 비디오를 찾을 수 없습니다.\n페이지를 새로고침하거나 다른 페이지를 시도해보세요.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(vertical = 16.dp)
+                    )
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        itemsIndexed(mp4Links) { index, url ->
+                            val isDownloading = downloadingUrls.contains(url)
+                            
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isDownloading) 
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                    else 
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    Text(
+                                        text = "비디오 ${index + 1}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(bottom = 4.dp)
+                                    )
+                                    
+                                    Text(
+                                        text = url.let { 
+                                            when {
+                                                it.length <= 50 -> it
+                                                else -> "${it.take(25)}...${it.takeLast(22)}"
+                                            }
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                    
+                                    Button(
+                                        onClick = { onDownload(url) },
+                                        enabled = !isDownloading,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        if (isDownloading) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("다운로드 중...")
+                                        } else {
+                                            Text("다운로드")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("닫기")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 다운로드 결과 알림 다이얼로그
+ * 다운로드 성공/실패 결과를 표시하는 다이얼로그
+ */
+@Composable
+fun DownloadResultDialog(
+    message: String,
+    onDismiss: () -> Unit
+) {
+    // 자동으로 사라지도록 LaunchedEffect 사용
+    LaunchedEffect(message) {
+        kotlinx.coroutines.delay(if (message.contains("실패")) 5000 else 3000)
+        onDismiss()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .padding(32.dp)
+                .widthIn(min = 280.dp, max = 400.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { /* 카드 클릭 시 이벤트 전파 방지 */ },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 아이콘 (성공/실패에 따라)
+                Icon(
+                    imageVector = if (message.contains("실패")) Icons.Default.Close else Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = if (message.contains("실패")) 
+                        MaterialTheme.colorScheme.error 
+                    else 
+                        MaterialTheme.colorScheme.primary
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // 메시지
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                // 확인 버튼
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (message.contains("실패")) 
+                            MaterialTheme.colorScheme.error 
+                        else 
+                            MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("확인")
+                }
+            }
+        }
+    }
+}
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/ui/components/TabComponents.kt">
+package com.swvd.simplewebvideodownloader.ui.components
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.swvd.simplewebvideodownloader.models.Tab
+
+/**
+ * 탭바 컴포넌트
+ * 상단에 표시되는 탭 목록과 새 탭 버튼
+ */
+@Composable
+fun TabBar(
+    tabs: List<Tab>,
+    currentTabIndex: Int,
+    onNewTab: () -> Unit,
+    onCloseTab: (Int) -> Unit,
+    onSwitchTab: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 탭 목록
+            LazyRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                itemsIndexed(tabs) { index, tab ->
+                    TabItem(
+                        tab = tab,
+                        isSelected = index == currentTabIndex,
+                        onClick = { onSwitchTab(index) },
+                        onClose = if (tabs.size > 1) { { onCloseTab(index) } } else null
+                    )
+                }
+            }
+            
+            // 새 탭 버튼
+            IconButton(
+                onClick = onNewTab,
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add, 
+                    contentDescription = "새 탭",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            // 탭 개수 표시
+            Card(
+                modifier = Modifier.padding(start = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text(
+                    text = "${tabs.size}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 개별 탭 아이템 컴포넌트
+ * 탭바에서 각 탭을 표시하는 컴포넌트
+ */
+@Composable
+fun TabItem(
+    tab: Tab,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onClose: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .clickable { onClick() }
+            .widthIn(min = 100.dp, max = 180.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) 
+                MaterialTheme.colorScheme.primaryContainer 
+            else 
+                MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = if (tab.title.isNotBlank() && tab.title != "새 탭") tab.title else "새 탭",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 11.sp,
+                    color = if (isSelected) 
+                        MaterialTheme.colorScheme.onPrimaryContainer 
+                    else 
+                        MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = tab.url.take(25) + if (tab.url.length > 25) "..." else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 9.sp
+                )
+            }
+            
+            onClose?.let {
+                IconButton(
+                    onClick = it,
+                    modifier = Modifier.size(18.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "탭 닫기",
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 탭 오버뷰 화면
+ * 모든 탭을 격자로 표시하는 화면
+ */
+@Composable
+fun TabOverviewScreen(
+    tabs: List<Tab>,
+    currentTabIndex: Int,
+    onTabSelected: (Int) -> Unit,
+    onTabClosed: (Int) -> Unit,
+    onAddNewTab: () -> Unit,
+    onBackToWebView: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.systemBars)
+            .padding(16.dp)
+    ) {
+        // 상단 바
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "탭 ${tabs.size}개",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            IconButton(onClick = onBackToWebView) {
+                Icon(Icons.Default.Close, "닫기")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 탭 그리드
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 기존 탭들
+            itemsIndexed(tabs) { index, tab ->
+                TabCard(
+                    tab = tab,
+                    isCurrentTab = index == currentTabIndex,
+                    onClick = { onTabSelected(index) },
+                    onClose = { onTabClosed(index) }
+                )
+            }
+
+            // 새 탭 추가 카드
+            item {
+                AddTabCard(onClick = onAddNewTab)
+            }
+        }
+    }
+}
+
+/**
+ * 탭 카드 컴포넌트
+ * 탭 오버뷰에서 각 탭을 표시하는 카드
+ */
+@Composable
+fun TabCard(
+    tab: Tab,
+    isCurrentTab: Boolean,
+    onClick: () -> Unit,
+    onClose: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCurrentTab) 
+                MaterialTheme.colorScheme.primaryContainer 
+            else 
+                MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = tab.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isCurrentTab) 
+                        MaterialTheme.colorScheme.onPrimaryContainer 
+                    else 
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Text(
+                    text = tab.url.takeIf { it.isNotEmpty() } ?: "새 탭",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isCurrentTab) 
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) 
+                    else 
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+
+            // 닫기 버튼
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.align(Alignment.TopEnd)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "탭 닫기",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+
+            // 현재 탭 표시
+            if (isCurrentTab) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    Text(
+                        text = "현재",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 새 탭 추가 카드
+ * 탭 오버뷰에서 새 탭을 추가할 수 있는 카드
+ */
+@Composable
+fun AddTabCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
+        border = BorderStroke(
+            1.dp, 
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+        )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    "새 탭 추가",
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "새 탭",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+    }
+}
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/ui/screens/FullscreenScreen.kt">
+package com.swvd.simplewebvideodownloader.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.swvd.simplewebvideodownloader.models.Tab
+import com.swvd.simplewebvideodownloader.ui.components.TabOverviewScreen
+
+/**
+ * 전체화면 UI 컴포넌트
+ * 웹뷰를 전체화면으로 표시할 때 사용하는 UI
+ */
+@Composable
+fun FullscreenUI(
+    tabs: List<Tab>,
+    currentTabIndex: Int,
+    currentUrl: String,
+    urlText: String,
+    onUrlTextChange: (String) -> Unit,
+    onLoadUrl: (String) -> Unit,
+    showTabOverview: Boolean,
+    onShowTabOverview: (Boolean) -> Unit,
+    onAddNewTab: () -> Unit,
+    canGoBack: Boolean,
+    canGoForward: Boolean,
+    isAnalyzing: Boolean,
+    mp4Links: List<String>,
+    downloadingUrls: Set<String>,
+    urlHistory: List<String>,
+    onGoBack: () -> Unit,
+    onGoForward: () -> Unit,
+    onRefresh: () -> Unit,
+    onShowMp4List: () -> Unit,
+    onSwitchTab: (Int) -> Unit,
+    onCloseTab: (Int) -> Unit,
+    onDownloadVideo: (String) -> Unit,
+    onExitFullscreen: () -> Unit,
+    webViewContent: @Composable () -> Unit
+) {
+    var isEditingUrl by remember { mutableStateOf(false) }
+    var editUrlText by remember { mutableStateOf("") }
+    var showHistoryDropdown by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (showTabOverview) {
+            // 탭 오버뷰 화면
+            TabOverviewScreen(
+                tabs = tabs,
+                currentTabIndex = currentTabIndex,
+                onTabSelected = { index ->
+                    onSwitchTab(index)
+                    onShowTabOverview(false)
+                },
+                onTabClosed = { index ->
+                    onCloseTab(index)
+                    if (tabs.size == 1) {
+                        onShowTabOverview(false)
+                    }
+                },
+                onAddNewTab = {
+                    onAddNewTab()
+                    onShowTabOverview(false)
+                },
+                onBackToWebView = { onShowTabOverview(false) }
+            )
+        } else {
+            // 웹뷰 화면
+            Column(modifier = Modifier.fillMaxSize()) {
+                // 상단 바
+                FullscreenTopBar(
+                    currentUrl = currentUrl,
+                    isEditingUrl = isEditingUrl,
+                    editUrlText = editUrlText,
+                    tabs = tabs,
+                    urlHistory = urlHistory,
+                    showHistoryDropdown = showHistoryDropdown,
+                    onEditUrlTextChange = { editUrlText = it },
+                    onStartEditingUrl = { 
+                        editUrlText = currentUrl
+                        isEditingUrl = true 
+                    },
+                    onStopEditingUrl = { isEditingUrl = false },
+                    onShowHistoryDropdown = { showHistoryDropdown = it },
+                    onLoadUrl = onLoadUrl,
+                    onAddNewTab = onAddNewTab,
+                    onShowTabOverview = { onShowTabOverview(true) },
+                    onExitFullscreen = onExitFullscreen
+                )
+
+                // 웹뷰 콘텐츠
+                Box(modifier = Modifier.weight(1f)) {
+                    webViewContent()
+                }
+
+                // 하단 네비게이션 바
+                FullscreenBottomBar(
+                    canGoBack = canGoBack,
+                    canGoForward = canGoForward,
+                    isAnalyzing = isAnalyzing,
+                    urlHistory = urlHistory,
+                    onGoBack = onGoBack,
+                    onGoForward = onGoForward,
+                    onRefresh = onRefresh,
+                    onShowMp4List = onShowMp4List,
+                    onShowHistory = { showHistoryDropdown = !showHistoryDropdown }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 전체화면 상단 바
+ */
+@Composable
+private fun FullscreenTopBar(
+    currentUrl: String,
+    isEditingUrl: Boolean,
+    editUrlText: String,
+    tabs: List<Tab>,
+    urlHistory: List<String>,
+    showHistoryDropdown: Boolean,
+    onEditUrlTextChange: (String) -> Unit,
+    onStartEditingUrl: () -> Unit,
+    onStopEditingUrl: () -> Unit,
+    onShowHistoryDropdown: (Boolean) -> Unit,
+    onLoadUrl: (String) -> Unit,
+    onAddNewTab: () -> Unit,
+    onShowTabOverview: () -> Unit,
+    onExitFullscreen: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+        tonalElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 좌측: URL 표시/편집
+            if (isEditingUrl) {
+                OutlinedTextField(
+                    value = editUrlText,
+                    onValueChange = onEditUrlTextChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("URL 입력") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                    keyboardActions = KeyboardActions(
+                        onGo = {
+                            if (editUrlText.isNotBlank()) {
+                                val url = if (!editUrlText.startsWith("http")) {
+                                    "https://$editUrlText"
+                                } else {
+                                    editUrlText
+                                }
+                                onLoadUrl(url)
+                            }
+                            onStopEditingUrl()
+                        }
+                    ),
+                    trailingIcon = {
+                        Row {
+                            IconButton(
+                                onClick = {
+                                    if (editUrlText.isNotBlank()) {
+                                        val url = if (!editUrlText.startsWith("http")) {
+                                            "https://$editUrlText"
+                                        } else {
+                                            editUrlText
+                                        }
+                                        onLoadUrl(url)
+                                    }
+                                    onStopEditingUrl()
+                                }
+                            ) {
+                                Icon(Icons.Default.Check, "확인")
+                            }
+                            IconButton(onClick = onStopEditingUrl) {
+                                Icon(Icons.Default.Close, "취소")
+                            }
+                            IconButton(onClick = { onShowHistoryDropdown(!showHistoryDropdown) }) {
+                                Icon(Icons.Default.Info, "기록")
+                            }
+                        }
+                    },
+                    singleLine = true
+                )
+            } else {
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onStartEditingUrl() },
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Text(
+                        text = currentUrl.takeIf { it.isNotEmpty() } ?: "URL을 입력하세요",
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // 우측: 새 탭 추가, 탭 개수, 전체화면 종료 (3개 버튼)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // 1. 새 탭 추가 버튼
+                IconButton(onClick = onAddNewTab) {
+                    Icon(
+                        Icons.Default.Add, 
+                        contentDescription = "새 탭",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                
+                // 2. 탭 개수 (탭 오버뷰로 이동)
+                Surface(
+                    modifier = Modifier.clickable { onShowTabOverview() },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    Text(
+                        text = tabs.size.toString(),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+                
+                // 3. 전체화면 종료 버튼
+                IconButton(onClick = onExitFullscreen) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "전체화면 종료",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+
+        // URL 히스토리 드롭다운
+        if (showHistoryDropdown && urlHistory.isNotEmpty()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 200.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(8.dp)
+            ) {
+                items(urlHistory.reversed()) { url ->
+                    Text(
+                        text = url,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onLoadUrl(url)
+                                onShowHistoryDropdown(false)
+                            }
+                            .padding(12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 전체화면 하단 네비게이션 바
+ */
+@Composable
+private fun FullscreenBottomBar(
+    canGoBack: Boolean,
+    canGoForward: Boolean,
+    isAnalyzing: Boolean,
+    urlHistory: List<String>,
+    onGoBack: () -> Unit,
+    onGoForward: () -> Unit,
+    onRefresh: () -> Unit,
+    onShowMp4List: () -> Unit,
+    onShowHistory: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom)),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+        tonalElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 1. 뒤로가기
+            IconButton(
+                onClick = onGoBack,
+                enabled = canGoBack
+            ) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    "뒤로가기",
+                    tint = if (canGoBack) 
+                        MaterialTheme.colorScheme.onSurface 
+                    else 
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+            }
+
+            // 2. 새로고침 및 MP4 감지
+            IconButton(
+                onClick = onRefresh
+            ) {
+                if (isAnalyzing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Icon(Icons.Default.Refresh, "새로고침")
+                }
+            }
+
+            // 3. MP4 목록 보기
+            IconButton(
+                onClick = onShowMp4List
+            ) {
+                Icon(Icons.Default.PlayArrow, "MP4 목록")
+            }
+
+            // 4. 최근 방문한 페이지 목록
+            IconButton(
+                onClick = onShowHistory,
+                enabled = urlHistory.isNotEmpty()
+            ) {
+                Icon(
+                    Icons.Default.Info,
+                    "방문 기록",
+                    tint = if (urlHistory.isNotEmpty()) 
+                        MaterialTheme.colorScheme.onSurface 
+                    else 
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+            }
+
+            // 5. 앞으로가기
+            IconButton(
+                onClick = onGoForward,
+                enabled = canGoForward
+            ) {
+                Icon(
+                    Icons.Default.ArrowForward,
+                    "앞으로가기",
+                    tint = if (canGoForward) 
+                        MaterialTheme.colorScheme.onSurface 
+                    else 
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+            }
+        }
+    }
+}
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/ui/theme/Color.kt">
+package com.swvd.simplewebvideodownloader.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+val Purple80 = Color(0xFFD0BCFF)
+val PurpleGrey80 = Color(0xFFCCC2DC)
+val Pink80 = Color(0xFFEFB8C8)
+
+val Purple40 = Color(0xFF6650a4)
+val PurpleGrey40 = Color(0xFF625b71)
+val Pink40 = Color(0xFF7D5260)
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/ui/theme/Theme.kt">
+package com.swvd.simplewebvideodownloader.ui.theme
+
+import android.app.Activity
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+
+private val DarkColorScheme = darkColorScheme(
+    primary = Purple80,
+    secondary = PurpleGrey80,
+    tertiary = Pink80
+)
+
+private val LightColorScheme = lightColorScheme(
+    primary = Purple40,
+    secondary = PurpleGrey40,
+    tertiary = Pink40
+
+    /* Other default colors to override
+    background = Color(0xFFFFFBFE),
+    surface = Color(0xFFFFFBFE),
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = Color.White,
+    onBackground = Color(0xFF1C1B1F),
+    onSurface = Color(0xFF1C1B1F),
+    */
+)
+
+@Composable
+fun SimpleWebVideoDownloaderTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Dynamic color is available on Android 12+
+    dynamicColor: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography,
+        content = content
+    )
+}
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/ui/theme/Type.kt">
+package com.swvd.simplewebvideodownloader.ui.theme
+
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
+// Set of Material typography styles to start with
+val Typography = Typography(
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp
+    )
+    /* Other default text styles to override
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = 0.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
+    )
+    */
+)
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/utils/FullscreenManager.kt">
+package com.swvd.simplewebvideodownloader.utils
+
+import android.app.Activity
+import android.view.View
+import android.view.WindowInsetsController
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+
+/**
+ * 전체화면 모드 관리 유틸리티
+ * 몰입형 전체화면 모드 설정을 담당
+ */
+object FullscreenManager {
+    
+    /**
+     * 전체화면 몰입형 모드 설정/해제
+     * @param activity 대상 액티비티
+     * @param enable 전체화면 모드 활성화 여부
+     */
+    fun setFullscreenMode(activity: Activity, enable: Boolean) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            if (enable) {
+                // Android 11+ 에서 몰입형 모드
+                activity.window.insetsController?.let { controller ->
+                    controller.hide(WindowInsetsCompat.Type.systemBars())
+                    controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            } else {
+                // 몰입형 모드 해제
+                activity.window.insetsController?.show(WindowInsetsCompat.Type.systemBars())
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            if (enable) {
+                // Android 10 이하에서 몰입형 모드
+                activity.window.decorView.systemUiVisibility = (
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                )
+            } else {
+                // 몰입형 모드 해제
+                activity.window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+            }
+        }
+    }
+    
+    /**
+     * Edge-to-Edge 모드 활성화
+     * @param activity 대상 액티비티
+     */
+    fun enableEdgeToEdge(activity: Activity) {
+        WindowCompat.setDecorFitsSystemWindows(activity.window, false)
+    }
+}
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/webview/Mp4Analyzer.kt">
+package com.swvd.simplewebvideodownloader.webview
+
+import android.util.Log
+import android.webkit.WebView
+
+/**
+ * MP4 비디오 분석 클래스
+ * 웹페이지에서 MP4 비디오 링크를 감지하는 기능을 담당
+ */
+class Mp4Analyzer {
+    
+    /**
+     * JavaScript 코드로 페이지에서 MP4 링크 추출
+     * 다양한 방법으로 MP4 URL을 찾아서 반환
+     */
+    private val mp4DetectionScript = """
+        (function() {
+            var results = [];
+            var uniqueUrls = new Set();
+            
+            try {
+                // 1. 모든 video 태그의 src 확인
+                var videos = document.querySelectorAll('video');
+                videos.forEach(function(v) {
+                    if (v.src && v.src.includes('.mp4')) {
+                        uniqueUrls.add(v.src);
+                    }
+                    if (v.currentSrc && v.currentSrc.includes('.mp4')) {
+                        uniqueUrls.add(v.currentSrc);
+                    }
+                });
+                
+                // 2. 모든 source 태그의 src 확인
+                var sources = document.querySelectorAll('source');
+                sources.forEach(function(s) {
+                    if (s.src && s.src.includes('.mp4')) {
+                        uniqueUrls.add(s.src);
+                    }
+                });
+                
+                // 3. 모든 a 태그의 href 확인 (링크)
+                var links = document.querySelectorAll('a[href]');
+                links.forEach(function(a) {
+                    if (a.href && a.href.includes('.mp4')) {
+                        uniqueUrls.add(a.href);
+                    }
+                });
+                
+                // 4. 페이지 HTML에서 MP4 URL 정규식 검색
+                var html = document.documentElement.outerHTML;
+                var mp4Regex = /https?:\/\/[^\s"'<>()]+\.mp4[^\s"'<>()]*/gi;
+                var matches = html.match(mp4Regex);
+                if (matches) {
+                    matches.forEach(function(match) {
+                        // URL 정리
+                        var cleanUrl = match.replace(/['"<>()]+${'$'}/, '');
+                        if (cleanUrl.length > 20) { // 너무 짧은 URL 제외
+                            uniqueUrls.add(cleanUrl);
+                        }
+                    });
+                }
+                
+                // 5. 모든 img 태그의 data 속성 확인 (때로는 비디오 썸네일이 data 속성에 있음)
+                var imgs = document.querySelectorAll('img[data-src], img[data-url]');
+                imgs.forEach(function(img) {
+                    var dataSrc = img.getAttribute('data-src') || img.getAttribute('data-url');
+                    if (dataSrc && dataSrc.includes('.mp4')) {
+                        uniqueUrls.add(dataSrc);
+                    }
+                });
+                
+                // 6. 모든 div의 data 속성 확인
+                var divs = document.querySelectorAll('div[data-video], div[data-src], div[data-url]');
+                divs.forEach(function(div) {
+                    var dataVideo = div.getAttribute('data-video') || div.getAttribute('data-src') || div.getAttribute('data-url');
+                    if (dataVideo && dataVideo.includes('.mp4')) {
+                        uniqueUrls.add(dataVideo);
+                    }
+                });
+                
+                // 결과 정리
+                uniqueUrls.forEach(function(url) {
+                    results.push(url);
+                });
+                
+                return JSON.stringify(results);
+                
+            } catch (e) {
+                return JSON.stringify(['JavaScript 오류: ' + e.message]);
+            }
+        })();
+    """.trimIndent()
+    
+    /**
+     * WebView에서 MP4 링크 분석 실행
+     * @param webView 분석할 WebView
+     * @param onResult 결과를 받을 콜백 함수
+     */
+    fun analyzePageForMp4(
+        webView: WebView?,
+        onResult: (List<String>) -> Unit
+    ) {
+        if (webView == null) {
+            Log.d("Mp4Analyzer", "WebView가 없음")
+            onResult(emptyList())
+            return
+        }
+        
+        Log.d("Mp4Analyzer", "MP4 감지 시작: ${webView.url}")
+        
+        webView.evaluateJavascript(mp4DetectionScript) { result ->
+            try {
+                val cleanResult = result?.replace("\\\"", "\"")?.removeSurrounding("\"") ?: "[]"
+                Log.d("Mp4Analyzer", "MP4 검색 결과: $cleanResult")
+
+                val videoLinks = if (cleanResult.startsWith("[")) {
+                    cleanResult.removeSurrounding("[", "]")
+                        .split(",")
+                        .map { it.trim().removeSurrounding("\"") }
+                        .filter { it.isNotEmpty() && it.contains(".mp4") && !it.contains("JavaScript 오류") }
+                } else {
+                    emptyList()
+                }
+
+                Log.d("Mp4Analyzer", "최종 MP4 링크 ${videoLinks.size}개 발견")
+                onResult(videoLinks)
+
+            } catch (e: Exception) {
+                Log.e("Mp4Analyzer", "MP4 분석 오류: ${e.message}")
+                onResult(listOf("분석 오류: ${e.message}"))
+            }
+        }
+    }
+}
+</file>
+
+<file path="app/src/main/res/drawable/ic_launcher_background.xml">
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#3DDC84"
+        android:pathData="M0,0h108v108h-108z" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M9,0L9,108"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M19,0L19,108"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M29,0L29,108"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M39,0L39,108"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M49,0L49,108"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M59,0L59,108"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M69,0L69,108"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M79,0L79,108"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M89,0L89,108"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M99,0L99,108"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,9L108,9"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,19L108,19"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,29L108,29"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,39L108,39"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,49L108,49"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,59L108,59"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,69L108,69"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,79L108,79"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,89L108,89"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,99L108,99"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M19,29L89,29"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M19,39L89,39"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M19,49L89,49"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M19,59L89,59"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M19,69L89,69"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M19,79L89,79"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M29,19L29,89"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M39,19L39,89"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M49,19L49,89"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M59,19L59,89"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M69,19L69,89"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M79,19L79,89"
+        android:strokeWidth="0.8"
+        android:strokeColor="#33FFFFFF" />
+</vector>
+</file>
+
+<file path="app/src/main/res/drawable/ic_launcher_foreground.xml">
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="85.84757"
+                android:endY="92.4963"
+                android:startX="42.9492"
+                android:startY="49.59793"
+                android:type="linear">
+                <item
+                    android:color="#44000000"
+                    android:offset="0.0" />
+                <item
+                    android:color="#00000000"
+                    android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="nonZero"
+        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
+        android:strokeWidth="1"
+        android:strokeColor="#00000000" />
+</vector>
+</file>
+
+<file path="app/src/main/res/values/colors.xml">
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
+</file>
+
+<file path="app/src/main/res/values/strings.xml">
+<resources>
+    <string name="app_name">SimpleWebVideoDownloader</string>
+</resources>
+</file>
+
+<file path="app/src/main/res/values/themes.xml">
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.SimpleWebVideoDownloader" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
+</file>
+
+<file path="app/src/main/res/xml/backup_rules.xml">
+<?xml version="1.0" encoding="utf-8"?><!--
+   Sample backup rules file; uncomment and customize as necessary.
+   See https://developer.android.com/guide/topics/data/autobackup
+   for details.
+   Note: This file is ignored for devices older than API 31
+   See https://developer.android.com/about/versions/12/backup-restore
+-->
+<full-backup-content>
+    <!--
+   <include domain="sharedpref" path="."/>
+   <exclude domain="sharedpref" path="device.xml"/>
+-->
+</full-backup-content>
+</file>
+
+<file path="app/src/main/res/xml/data_extraction_rules.xml">
+<?xml version="1.0" encoding="utf-8"?><!--
+   Sample data extraction rules file; uncomment and customize as necessary.
+   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
+   for details.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- TODO: Use <include> and <exclude> to control what is backed up.
+        <include .../>
+        <exclude .../>
+        -->
+    </cloud-backup>
+    <!--
+    <device-transfer>
+        <include .../>
+        <exclude .../>
+    </device-transfer>
+    -->
+</data-extraction-rules>
+</file>
+
+<file path="app/src/test/java/com/swvd/simplewebvideodownloader/ExampleUnitTest.kt">
+package com.swvd.simplewebvideodownloader
+
+import org.junit.Test
+
+import org.junit.Assert.*
+
+/**
+ * Example local unit test, which will execute on the development machine (host).
+ *
+ * See [testing documentation](http://d.android.com/tools/testing).
+ */
+class ExampleUnitTest {
+    @Test
+    fun addition_isCorrect() {
+        assertEquals(4, 2 + 2)
+    }
+}
+</file>
+
+<file path="app/.gitignore">
+/build
+</file>
+
+<file path="app/proguard-rules.pro">
+# Add project specific ProGuard rules here.
+# You can control the set of applied configuration files using the
+# proguardFiles setting in build.gradle.
+#
+# For more details, see
+#   http://developer.android.com/guide/developing/tools/proguard.html
+
+# If your project uses WebView with JS, uncomment the following
+# and specify the fully qualified class name to the JavaScript interface
+# class:
+#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+#   public *;
+#}
+
+# Uncomment this to preserve the line number information for
+# debugging stack traces.
+#-keepattributes SourceFile,LineNumberTable
+
+# If you keep the line number information, uncomment this to
+# hide the original source file name.
+#-renamesourcefileattribute SourceFile
+</file>
+
+<file path="gradle/wrapper/gradle-wrapper.properties">
+#Thu Jun 12 16:09:15 KST 2025
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+</file>
+
+<file path="gradle/libs.versions.toml">
+[versions]
+agp = "8.10.1"
+kotlin = "2.0.21"
+coreKtx = "1.16.0"
+junit = "4.13.2"
+junitVersion = "1.2.1"
+espressoCore = "3.6.1"
+lifecycleRuntimeKtx = "2.9.1"
+activityCompose = "1.10.1"
+composeBom = "2024.09.00"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+</file>
+
+<file path=".gitignore">
+# Android Studio and Gradle files
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Android APK files
+*.apk
+*.aab
+
+# Keystore files
+*.jks
+*.keystore
+
+# Log files
+*.log
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Android Studio captures folder
+captures/
+
+# IntelliJ
+*.iws
+/out/
+
+# User-specific configurations
+.idea/libraries/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/.name
+.idea/compiler.xml
+.idea/copyright/profiles_settings.xml
+.idea/encodings.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/scopes/scope_settings.xml
+.idea/dictionaries
+.idea/vcs.xml
+.idea/jsLibraryMappings.xml
+.idea/datasources.xml
+.idea/dataSources.ids
+.idea/sqlDataSources.xml
+.idea/dynamic.xml
+.idea/uiDesigner.xml
+
+# OS-specific files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*~
+
+# Gradle Wrapper
+!gradle/wrapper/gradle-wrapper.jar
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# Avoid ignoring Maven wrapper jar file (.jar files are usually ignored)
+!/.mvn/wrapper/maven-wrapper.jar
+</file>
+
+<file path="build.gradle.kts">
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+}
+</file>
+
+<file path="CLAUDE.md">
+# Basic Rules
+- You are a senior coding expert.
+
+## General Guidelines
+- Make a step-by-step plan and work it out.
+- At the top of the file, include its role and brief description.
+- Please include comments when writing the code.
+- Please write the variable name so that the meaning is clear.
+- Please include the error handling.
+- Put readability and maintenance first.
+
+## Description
+- Please add an explanation to the complex logic.
+- Please briefly explain the purpose of the code and how it works.
+</file>
+
+<file path="gradle.properties">
+# Project-wide Gradle settings.
+# IDE (e.g. Android Studio) users:
+# Gradle settings configured through the IDE *will override*
+# any settings specified in this file.
+# For more details on how to configure your build environment visit
+# http://www.gradle.org/docs/current/userguide/build_environment.html
+# Specifies the JVM arguments used for the daemon process.
+# The setting is particularly useful for tweaking memory settings.
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+# When configured, Gradle will run in incubating parallel mode.
+# This option should only be used with decoupled projects. For more details, visit
+# https://developer.android.com/r/tools/gradle-multi-project-decoupled-projects
+# org.gradle.parallel=true
+# AndroidX package structure to make it clearer which packages are bundled with the
+# Android operating system, and which are packaged with your app's APK
+# https://developer.android.com/topic/libraries/support-library/androidx-rn
+android.useAndroidX=true
+# Kotlin code style for this project: "official" or "obsolete":
+kotlin.code.style=official
+# Enables namespacing of each library's R class so that its R class includes only the
+# resources declared in the library itself and none from the library's dependencies,
+# thereby reducing the size of the R class for that library
+android.nonTransitiveRClass=true
+</file>
+
+<file path="gradlew">
+#!/usr/bin/env sh
+
+#
+# Copyright 2015 the original author or authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+##############################################################################
+##
+##  Gradle start up script for UN*X
+##
+##############################################################################
+
+# Attempt to set APP_HOME
+# Resolve links: $0 may be a link
+PRG="$0"
+# Need this for relative symlinks.
+while [ -h "$PRG" ] ; do
+    ls=`ls -ld "$PRG"`
+    link=`expr "$ls" : '.*-> \(.*\)$'`
+    if expr "$link" : '/.*' > /dev/null; then
+        PRG="$link"
+    else
+        PRG=`dirname "$PRG"`"/$link"
+    fi
+done
+SAVED="`pwd`"
+cd "`dirname \"$PRG\"`/" >/dev/null
+APP_HOME="`pwd -P`"
+cd "$SAVED" >/dev/null
+
+APP_NAME="Gradle"
+APP_BASE_NAME=`basename "$0"`
+
+# Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
+DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+
+# Use the maximum available, or set MAX_FD != -1 to use that value.
+MAX_FD="maximum"
+
+warn () {
+    echo "$*"
+}
+
+die () {
+    echo
+    echo "$*"
+    echo
+    exit 1
+}
+
+# OS specific support (must be 'true' or 'false').
+cygwin=false
+msys=false
+darwin=false
+nonstop=false
+case "`uname`" in
+  CYGWIN* )
+    cygwin=true
+    ;;
+  Darwin* )
+    darwin=true
+    ;;
+  MINGW* )
+    msys=true
+    ;;
+  NONSTOP* )
+    nonstop=true
+    ;;
+esac
+
+CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+
+
+# Determine the Java command to use to start the JVM.
+if [ -n "$JAVA_HOME" ] ; then
+    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
+        # IBM's JDK on AIX uses strange locations for the executables
+        JAVACMD="$JAVA_HOME/jre/sh/java"
+    else
+        JAVACMD="$JAVA_HOME/bin/java"
+    fi
+    if [ ! -x "$JAVACMD" ] ; then
+        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
+
+Please set the JAVA_HOME variable in your environment to match the
+location of your Java installation."
+    fi
+else
+    JAVACMD="java"
+    which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+
+Please set the JAVA_HOME variable in your environment to match the
+location of your Java installation."
+fi
+
+# Increase the maximum file descriptors if we can.
+if [ "$cygwin" = "false" -a "$darwin" = "false" -a "$nonstop" = "false" ] ; then
+    MAX_FD_LIMIT=`ulimit -H -n`
+    if [ $? -eq 0 ] ; then
+        if [ "$MAX_FD" = "maximum" -o "$MAX_FD" = "max" ] ; then
+            MAX_FD="$MAX_FD_LIMIT"
+        fi
+        ulimit -n $MAX_FD
+        if [ $? -ne 0 ] ; then
+            warn "Could not set maximum file descriptor limit: $MAX_FD"
+        fi
+    else
+        warn "Could not query maximum file descriptor limit: $MAX_FD_LIMIT"
+    fi
+fi
+
+# For Darwin, add options to specify how the application appears in the dock
+if $darwin; then
+    GRADLE_OPTS="$GRADLE_OPTS \"-Xdock:name=$APP_NAME\" \"-Xdock:icon=$APP_HOME/media/gradle.icns\""
+fi
+
+# For Cygwin or MSYS, switch paths to Windows format before running java
+if [ "$cygwin" = "true" -o "$msys" = "true" ] ; then
+    APP_HOME=`cygpath --path --mixed "$APP_HOME"`
+    CLASSPATH=`cygpath --path --mixed "$CLASSPATH"`
+
+    JAVACMD=`cygpath --unix "$JAVACMD"`
+
+    # We build the pattern for arguments to be converted via cygpath
+    ROOTDIRSRAW=`find -L / -maxdepth 1 -mindepth 1 -type d 2>/dev/null`
+    SEP=""
+    for dir in $ROOTDIRSRAW ; do
+        ROOTDIRS="$ROOTDIRS$SEP$dir"
+        SEP="|"
+    done
+    OURCYGPATTERN="(^($ROOTDIRS))"
+    # Add a user-defined pattern to the cygpath arguments
+    if [ "$GRADLE_CYGPATTERN" != "" ] ; then
+        OURCYGPATTERN="$OURCYGPATTERN|($GRADLE_CYGPATTERN)"
+    fi
+    # Now convert the arguments - kludge to limit ourselves to /bin/sh
+    i=0
+    for arg in "$@" ; do
+        CHECK=`echo "$arg"|egrep -c "$OURCYGPATTERN" -`
+        CHECK2=`echo "$arg"|egrep -c "^-"`                                 ### Determine if an option
+
+        if [ $CHECK -ne 0 ] && [ $CHECK2 -eq 0 ] ; then                    ### Added a condition
+            eval `echo args$i`=`cygpath --path --ignore --mixed "$arg"`
+        else
+            eval `echo args$i`="\"$arg\""
+        fi
+        i=`expr $i + 1`
+    done
+    case $i in
+        0) set -- ;;
+        1) set -- "$args0" ;;
+        2) set -- "$args0" "$args1" ;;
+        3) set -- "$args0" "$args1" "$args2" ;;
+        4) set -- "$args0" "$args1" "$args2" "$args3" ;;
+        5) set -- "$args0" "$args1" "$args2" "$args3" "$args4" ;;
+        6) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" ;;
+        7) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" ;;
+        8) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" ;;
+        9) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" "$args8" ;;
+    esac
+fi
+
+# Escape application args
+save () {
+    for i do printf %s\\n "$i" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/' \\\\/" ; done
+    echo " "
+}
+APP_ARGS=`save "$@"`
+
+# Collect all arguments for the java command, following the shell quoting and substitution rules
+eval set -- $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS "\"-Dorg.gradle.appname=$APP_BASE_NAME\"" -classpath "\"$CLASSPATH\"" org.gradle.wrapper.GradleWrapperMain "$APP_ARGS"
+
+exec "$JAVACMD" "$@"
+</file>
+
+<file path="gradlew.bat">
+@rem
+@rem Copyright 2015 the original author or authors.
+@rem
+@rem Licensed under the Apache License, Version 2.0 (the "License");
+@rem you may not use this file except in compliance with the License.
+@rem You may obtain a copy of the License at
+@rem
+@rem      https://www.apache.org/licenses/LICENSE-2.0
+@rem
+@rem Unless required by applicable law or agreed to in writing, software
+@rem distributed under the License is distributed on an "AS IS" BASIS,
+@rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+@rem See the License for the specific language governing permissions and
+@rem limitations under the License.
+@rem
+
+@if "%DEBUG%" == "" @echo off
+@rem ##########################################################################
+@rem
+@rem  Gradle startup script for Windows
+@rem
+@rem ##########################################################################
+
+@rem Set local scope for the variables with windows NT shell
+if "%OS%"=="Windows_NT" setlocal
+
+set DIRNAME=%~dp0
+if "%DIRNAME%" == "" set DIRNAME=.
+set APP_BASE_NAME=%~n0
+set APP_HOME=%DIRNAME%
+
+@rem Resolve any "." and ".." in APP_HOME to make it shorter.
+for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
+
+@rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
+set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
+
+@rem Find java.exe
+if defined JAVA_HOME goto findJavaFromJavaHome
+
+set JAVA_EXE=java.exe
+%JAVA_EXE% -version >NUL 2>&1
+if "%ERRORLEVEL%" == "0" goto execute
+
+echo.
+echo ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+echo.
+echo Please set the JAVA_HOME variable in your environment to match the
+echo location of your Java installation.
+
+goto fail
+
+:findJavaFromJavaHome
+set JAVA_HOME=%JAVA_HOME:"=%
+set JAVA_EXE=%JAVA_HOME%/bin/java.exe
+
+if exist "%JAVA_EXE%" goto execute
+
+echo.
+echo ERROR: JAVA_HOME is set to an invalid directory: %JAVA_HOME%
+echo.
+echo Please set the JAVA_HOME variable in your environment to match the
+echo location of your Java installation.
+
+goto fail
+
+:execute
+@rem Setup the command line
+
+set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
+
+
+@rem Execute Gradle
+"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
+
+:end
+@rem End local scope for the variables with windows NT shell
+if "%ERRORLEVEL%"=="0" goto mainEnd
+
+:fail
+rem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of
+rem the _cmd.exe /c_ return code!
+if  not "" == "%GRADLE_EXIT_CONSOLE%" exit 1
+exit /b 1
+
+:mainEnd
+if "%OS%"=="Windows_NT" endlocal
+
+:omega
+</file>
+
+<file path="LICENSE">
+MIT License
+
+Copyright (c) 2025 JaemyeongBae
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="README.md">
+# 🎬 Simple Web Video Downloader
+
+Android 웹 비디오 다운로더 앱으로, 웹 페이지에서 MP4 비디오를 자동으로 감지하고 다운로드할 수 있는 사용자 친화적인 인터페이스를 제공합니다.
+
+## ✨ 주요 기능
+
+- 🌐 **내장 웹 브라우저**: 완전한 웹 브라우징 경험
+- 🔍 **자동 MP4 감지**: 페이지의 모든 MP4 비디오 링크를 자동으로 탐지
+- ⬇️ **간편한 다운로드**: 원클릭으로 비디오 다운로드
+- 📱 **반응형 UI**: 다양한 Android 기기에서 최적화된 사용자 경험
+- 🎯 **전체화면 모드**: 몰입형 브라우징 경험
+- 📜 **브라우징 히스토리**: 최근 방문한 URL 관리
+- 🎨 **Material Design 3**: 현대적이고 직관적인 UI
+
+## 📱 스크린샷
+
+> 스크린샷은 추후 추가 예정
+
+## 🛠️ 기술 스택
+
+- **언어**: Kotlin
+- **UI 프레임워크**: Jetpack Compose
+- **아키텍처**: MVVM with Compose State Management
+- **웹뷰**: Android WebView with JavaScript injection
+- **HTML 파싱**: Jsoup
+- **최소 SDK**: API 24 (Android 7.0)
+- **타겟 SDK**: API 35 (Android 15)
+
+## 📋 요구사항
+
+- Android 7.0 (API 24) 이상
+- 인터넷 연결
+- 저장소 권한 (다운로드용)
+
+## 🚀 설치 방법
+
+### APK 다운로드 (추후 제공)
+1. [Releases](https://github.com/JaemyeongBae/SimpleWebVideoDownloader/releases) 페이지에서 최신 APK 다운로드
+2. Android 기기에서 "알 수 없는 소스" 허용
+3. APK 파일 설치
+
+### 소스 코드에서 빌드
+```bash
+# 저장소 복제
+git clone https://github.com/JaemyeongBae/SimpleWebVideoDownloader.git
+
+# 프로젝트 디렉토리로 이동
+cd SimpleWebVideoDownloader
+
+# Android Studio에서 프로젝트 열기
+# 또는 명령줄에서 빌드
+./gradlew assembleDebug
+```
+
+## 🎯 사용 방법
+
+1. **URL 입력**: 상단 URL 입력창에 웹사이트 주소 입력
+2. **페이지 탐색**: 내장 브라우저로 원하는 페이지 방문
+3. **비디오 감지**: 앱이 자동으로 MP4 비디오 링크 탐지
+4. **다운로드**: 감지된 비디오 목록에서 원하는 비디오 다운로드
+5. **전체화면**: 전체화면 모드로 더 나은 브라우징 경험
+
+## 🔧 개발 환경 설정
+
+### 필수 도구
+- Android Studio Hedgehog | 2023.1.1 이상
+- JDK 11 이상
+- Android SDK 35
+
+### 프로젝트 설정
+```bash
+# 의존성 동기화
+./gradlew sync
+
+# 디버그 빌드
+./gradlew assembleDebug
+
+# 릴리즈 빌드
+./gradlew assembleRelease
+```
+
+## 📁 프로젝트 구조
+
+```
+app/
+├── src/main/
+│   ├── java/com/swvd/simplewebvideodownloader/
+│   │   ├── MainActivity.kt          # 메인 액티비티
+│   │   └── ui/theme/               # UI 테마 설정
+│   ├── res/                        # 리소스 파일
+│   └── AndroidManifest.xml         # 앱 매니페스트
+├── build.gradle.kts                # 앱 레벨 빌드 설정
+└── proguard-rules.pro             # ProGuard 설정
+```
+
+## 🤝 기여하기
+
+프로젝트에 기여해주셔서 감사합니다! 다음 단계를 따라주세요:
+
+1. 이 저장소를 Fork합니다
+2. 새로운 기능 브랜치를 생성합니다 (`git checkout -b feature/AmazingFeature`)
+3. 변경사항을 커밋합니다 (`git commit -m 'Add some AmazingFeature'`)
+4. 브랜치에 Push합니다 (`git push origin feature/AmazingFeature`)
+5. Pull Request를 생성합니다
+
+### 개발 가이드라인
+- Kotlin 코딩 컨벤션 준수
+- Jetpack Compose 베스트 프랙티스 적용
+- 모든 새 기능에 대한 테스트 작성
+- 커밋 메시지는 명확하고 설명적으로 작성
+
+## 📝 라이선스
+
+이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+
+## 🐛 버그 리포트 및 기능 요청
+
+버그를 발견하거나 새로운 기능을 제안하고 싶으시면 [Issues](https://github.com/JaemyeongBae/SimpleWebVideoDownloader/issues) 페이지에서 새로운 이슈를 생성해주세요.
+
+### 버그 리포트 시 포함할 정보
+- Android 버전
+- 기기 모델
+- 앱 버전
+- 재현 단계
+- 예상 동작 vs 실제 동작
+
+## 📞 연락처
+
+프로젝트에 대한 질문이 있으시면 언제든지 연락주세요:
+
+- GitHub: [@JaemyeongBae](https://github.com/JaemyeongBae)
+- 이슈: [GitHub Issues](https://github.com/JaemyeongBae/SimpleWebVideoDownloader/issues)
+
+## 🙏 감사의 말
+
+- [Jsoup](https://jsoup.org/) - HTML 파싱 라이브러리
+- [Jetpack Compose](https://developer.android.com/jetpack/compose) - 현대적인 Android UI 툴킷
+- [Material Design 3](https://m3.material.io/) - 디자인 시스템
+
+---
+
+⭐ 이 프로젝트가 유용하다면 별표를 눌러주세요!
+</file>
+
+<file path="settings.gradle.kts">
+pluginManagement {
+    repositories {
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "SimpleWebVideoDownloader"
+include(":app")
+</file>
+
+<file path="app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml">
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+  <background android:drawable="@mipmap/ic_launcher_adaptive_back"/>
+  <foreground android:drawable="@mipmap/ic_launcher_adaptive_fore"/>
+</adaptive-icon>
+</file>
+
+<file path="app/src/main/AndroidManifest.xml">
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 다운로드 권한 추가 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <!-- Android 13+ 에서는 이 권한이 필요할 수 있습니다 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SimpleWebVideoDownloader"
+        android:usesCleartextTraffic="true"
+        android:requestLegacyExternalStorage="true"
+        tools:targetApi="31">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.SimpleWebVideoDownloader"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:hardwareAccelerated="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
+</file>
+
+<file path="app/src/main/java/com/swvd/simplewebvideodownloader/MainActivity.kt">
+package com.swvd.simplewebvideodownloader
+
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebChromeClient
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.activity.compose.BackHandler
+import androidx.core.view.WindowCompat
+
+
+// Import separated components and utilities
+import com.swvd.simplewebvideodownloader.models.Tab
+import com.swvd.simplewebvideodownloader.download.DownloadHandler
+import com.swvd.simplewebvideodownloader.webview.Mp4Analyzer
+import com.swvd.simplewebvideodownloader.utils.FullscreenManager
+import com.swvd.simplewebvideodownloader.ui.components.*
+import com.swvd.simplewebvideodownloader.ui.screens.FullscreenUI
+
+/**
+ * MainActivity - 분리된 구조로 리팩토링
+ * 각 기능이 별도 클래스/컴포넌트로 분리되어 관리가 용이함
+ */
+class MainActivity : ComponentActivity() {
+
+    // 다운로드 관련 기능을 담당하는 핸들러
+    private lateinit var downloadHandler: DownloadHandler
+    
+    // MP4 분석 기능을 담당하는 애널라이저
+    private val mp4Analyzer = Mp4Analyzer()
+
+    // 권한 요청 처리
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (!allGranted && this::downloadHandler.isInitialized) {
+            // 권한 요청 결과를 DownloadHandler에게 위임할 수 있도록 추후 확장 가능
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        
+        // 분리된 FullscreenManager 사용
+        FullscreenManager.enableEdgeToEdge(this)
+        
+        // DownloadHandler 초기화
+        downloadHandler = DownloadHandler(this)
+        
+        setContent {
+            MaterialTheme {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+                ) {
+                    MainScreen(
+                        downloadHandler = downloadHandler,
+                        mp4Analyzer = mp4Analyzer,
+                        onRequestPermissions = { requestStoragePermissions() },
+                        onFullscreenModeChange = { isFullscreen -> 
+                            FullscreenManager.setFullscreenMode(this@MainActivity, isFullscreen) 
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * 저장소 권한 요청
+     * DownloadHandler로 권한 확인 로직 위임
+     */
+    private fun requestStoragePermissions() {
+        val permissions = downloadHandler.checkStoragePermissions()
+        if (permissions.isNotEmpty()) {
+            requestPermissionLauncher.launch(permissions.toTypedArray())
+        }
+    }
+}
+
+/**
+ * 메인 화면 컴포저블
+ * 분리된 컴포넌트들을 조합하여 전체 화면을 구성
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(
+    modifier: Modifier = Modifier,
+    downloadHandler: DownloadHandler,
+    mp4Analyzer: Mp4Analyzer,
+    onRequestPermissions: () -> Unit,
+    onFullscreenModeChange: (Boolean) -> Unit
+) {
+    // 탭 관련 상태
+    var tabs by remember { mutableStateOf(listOf(Tab())) }
+    var currentTabIndex by remember { mutableIntStateOf(0) }
+    var showTabOverview by remember { mutableStateOf(false) }
+    
+    var urlText by remember { mutableStateOf("") }
+    var currentUrl by remember { mutableStateOf("") }
+    var webView by remember { mutableStateOf<WebView?>(null) }
+    var fullscreenWebView by remember { mutableStateOf<WebView?>(null) }
+    var mp4Links by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isAnalyzing by remember { mutableStateOf(false) }
+    var hasAnalyzed by remember { mutableStateOf(false) }
+    var downloadingUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var urlSectionExpanded by remember { mutableStateOf(true) }
+    
+    // 다운로드 결과 알림 상태
+    var downloadResultMessage by remember { mutableStateOf<String?>(null) }
+    var showDownloadResult by remember { mutableStateOf(false) }
+    var mp4SectionExpanded by remember { mutableStateOf(true) }
+    var isWebViewFullscreen by remember { mutableStateOf(false) }
+    var canGoBack by remember { mutableStateOf(false) }
+    var canGoForward by remember { mutableStateOf(false) }
+    var webViewState by remember { mutableStateOf<Bundle?>(null) }
+    var urlHistory by remember { mutableStateOf<List<String>>(emptyList()) }
+    var showMp4List by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val currentTab = if (tabs.isNotEmpty() && currentTabIndex in tabs.indices) tabs[currentTabIndex] else null
+
+    // 탭 관리 함수들
+    fun addNewTab() {
+        val newTab = Tab()
+        tabs = tabs + newTab
+        currentTabIndex = tabs.size - 1
+    }
+    
+    fun closeTab(index: Int) {
+        if (tabs.size <= 1) return // 최소 1개 탭 유지
+        
+        tabs = tabs.filterIndexed { i, _ -> i != index }
+        if (index <= currentTabIndex && currentTabIndex > 0) {
+            currentTabIndex--
+        }
+        if (currentTabIndex >= tabs.size) {
+            currentTabIndex = tabs.size - 1
+        }
+    }
+    
+    fun switchTab(index: Int) {
+        if (index in tabs.indices) {
+            currentTabIndex = index
+            // 탭 전환시 URL 동기화
+            currentTab?.let { tab ->
+                urlText = tab.url
+                currentUrl = tab.url
+            }
+        }
+    }
+
+    // 네비게이션 상태 업데이트 함수
+    fun updateNavigationState() {
+        val activeWebView = if (isWebViewFullscreen) fullscreenWebView else webView
+        val oldCanGoBack = canGoBack
+        val oldCanGoForward = canGoForward
+        
+        canGoBack = activeWebView?.canGoBack() ?: false
+        canGoForward = activeWebView?.canGoForward() ?: false
+        
+        Log.d("Navigation", "상태 업데이트 - 전체화면: $isWebViewFullscreen")
+        Log.d("Navigation", "활성 WebView: ${activeWebView != null}")
+        Log.d("Navigation", "뒤로가기: $oldCanGoBack → $canGoBack")
+        Log.d("Navigation", "앞으로가기: $oldCanGoForward → $canGoForward")
+    }
+
+    // 전체화면 모드에서 뒤로가기 처리 및 상태 동기화
+    BackHandler(enabled = isWebViewFullscreen) {
+        // 전체화면 WebView의 상태 저장
+        fullscreenWebView?.let { fsWebView ->
+            val bundle = Bundle()
+            fsWebView.saveState(bundle)
+            webViewState = bundle
+            
+            // 현재 URL도 업데이트
+            fsWebView.url?.let { url ->
+                if (url != currentUrl && 
+                    !url.startsWith("data:") && 
+                    !url.startsWith("about:") &&
+                    url != "about:blank") {
+                    currentUrl = url
+                    urlText = url
+                }
+            }
+        }
+        
+        // 전체화면 모드 종료 후 네비게이션 상태 업데이트
+        isWebViewFullscreen = false
+        
+        // 상태 업데이트를 위한 지연 실행
+        Handler(Looper.getMainLooper()).postDelayed({
+            updateNavigationState()
+        }, 100)
+    }
+
+    fun analyzePageForMp4() {
+        if (isAnalyzing) return
+        
+        // 현재 활성화된 WebView 사용 (전체화면 모드일 때는 fullscreenWebView 우선)
+        val activeWebView = if (isWebViewFullscreen) {
+            fullscreenWebView ?: webView
+        } else {
+            webView ?: fullscreenWebView
+        }
+        
+        Log.d("WebView", "MP4 감지 시작 (전체화면: $isWebViewFullscreen)")
+        
+        isAnalyzing = true
+        hasAnalyzed = true
+        
+        // 분리된 Mp4Analyzer 사용
+        mp4Analyzer.analyzePageForMp4(activeWebView) { videoLinks ->
+            mp4Links = videoLinks
+            isAnalyzing = false
+        }
+    }
+
+    fun loadUrl() {
+        if (urlText.isNotBlank()) {
+            val url = if (!urlText.startsWith("http://") && !urlText.startsWith("https://")) {
+                "https://$urlText"
+            } else {
+                urlText
+            }
+            currentUrl = url
+            
+            // 현재 탭의 URL 업데이트
+            currentTab?.let { tab ->
+                tabs = tabs.map { if (it.id == tab.id) it.copy(url = url) else it }
+            }
+            
+            // 히스토리에 URL 추가 (중복 제거)
+            if (!urlHistory.contains(url)) {
+                urlHistory = urlHistory + url
+            }
+            
+            webView?.loadUrl(url)
+            keyboardController?.hide()
+            urlSectionExpanded = false  // 로드 후 접기
+            
+            // URL 로드 후 1회 MP4 감지 (1초 딜레이)
+            Handler(Looper.getMainLooper()).postDelayed({
+                analyzePageForMp4()
+            }, 1000)
+        }
+    }
+
+    fun downloadVideo(url: String) {
+        val cleanUrl = url.trim()
+
+        // URL 유효성 검사
+        if (!downloadHandler.isValidUrl(cleanUrl)) {
+            downloadResultMessage = "다운로드 실패!\n유효하지 않은 URL입니다"
+            showDownloadResult = true
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                showDownloadResult = false
+                downloadResultMessage = null
+            }, 3000)
+            return
+        }
+
+        // 권한 확인
+        val permissions = downloadHandler.checkStoragePermissions()
+        if (permissions.isNotEmpty()) {
+            downloadResultMessage = "다운로드 실패!\n저장소 권한이 필요합니다"
+            showDownloadResult = true
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                showDownloadResult = false
+                downloadResultMessage = null
+            }, 3000)
+            
+            onRequestPermissions()
+            return
+        }
+
+        // 파일명 생성
+        val filename = downloadHandler.generateFilename(cleanUrl)
+
+        try {
+            downloadingUrls = downloadingUrls + cleanUrl
+            downloadHandler.downloadFile(cleanUrl, filename)
+            
+            // 다운로드 성공 알림
+            downloadResultMessage = "다운로드 시작!\n파일: $filename\nDownloads 폴더에 저장됩니다"
+            showDownloadResult = true
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                showDownloadResult = false
+                downloadResultMessage = null
+            }, 3000)
+            
+        } catch (e: Exception) {
+            // 다운로드 실패 시 상태 업데이트 및 에러 알림
+            downloadingUrls = downloadingUrls - cleanUrl
+            downloadResultMessage = "다운로드 실패!\n오류: ${e.message}"
+            showDownloadResult = true
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                showDownloadResult = false
+                downloadResultMessage = null
+            }, 5000)
+            
+            Log.e("Download", "다운로드 실패: ${e.message}")
+        }
+    }
+
+    // URL 변경 및 1회 MP4 감지 함수
+    fun updateUrlIfChanged(newUrl: String) {
+        if (newUrl != currentUrl && 
+            !newUrl.startsWith("data:") && 
+            !newUrl.startsWith("about:") &&
+            newUrl != "about:blank") {
+            currentUrl = newUrl
+            urlText = newUrl
+            
+            // 히스토리에 URL 추가 (중복 제거)
+            if (!urlHistory.contains(newUrl)) {
+                urlHistory = urlHistory + newUrl
+            }
+            
+            // 네비게이션 상태 업데이트
+            updateNavigationState()
+            
+            // URL 변경 시 1회 MP4 감지 (1초 딜레이)
+            Handler(Looper.getMainLooper()).postDelayed({
+                analyzePageForMp4()
+            }, 1000)
+        }
+    }
+
+    // 네비게이션 후 URL 동기화 및 1회 MP4 감지
+    fun handleNavigation(targetWebView: WebView?) {
+        // 즉시 URL 체크 및 네비게이션 상태 업데이트
+        targetWebView?.url?.let { newUrl ->
+            updateUrlIfChanged(newUrl)
+        }
+        updateNavigationState()
+        
+        // 500ms 후 다시 체크 (페이지 로딩 완료 대기)
+        Handler(Looper.getMainLooper()).postDelayed({
+            targetWebView?.url?.let { newUrl ->
+                updateUrlIfChanged(newUrl)
+            }
+            updateNavigationState()
+        }, 500)
+        
+        // 네비게이션 후 추가 MP4 감지 (페이지 완전 로딩 후)
+        Handler(Looper.getMainLooper()).postDelayed({
+            analyzePageForMp4()
+        }, 2000)
+    }
+
+    // 다운로딩 상태 관리
+    LaunchedEffect(downloadingUrls) {
+        if (downloadingUrls.isNotEmpty()) {
+            kotlinx.coroutines.delay(3000)
+            downloadingUrls = emptySet()
+        }
+    }
+
+    // 전체화면 모드 변경 시 네비게이션 상태 업데이트
+    LaunchedEffect(isWebViewFullscreen) {
+        updateNavigationState()
+        // 전체화면 모드 시 몰입형 모드 활성화
+        onFullscreenModeChange(isWebViewFullscreen)
+        
+        // 전체화면 모드 전환 후 추가적인 상태 업데이트 (WebView 로딩 대기)
+        kotlinx.coroutines.delay(500)
+        updateNavigationState()
+        kotlinx.coroutines.delay(1000)
+        updateNavigationState()
+    }
+
+    // 탭 전환시 URL 동기화
+    LaunchedEffect(currentTabIndex) {
+        currentTab?.let { tab ->
+            urlText = tab.url
+            currentUrl = tab.url
+        }
+    }
+
+    // URL 변경 시 네비게이션 상태 업데이트
+    LaunchedEffect(currentUrl) {
+        if (currentUrl.isNotEmpty()) {
+            kotlinx.coroutines.delay(1000) // 페이지 로딩 대기
+            updateNavigationState()
+        }
+    }
+
+            // 전체화면 모드일 때 분리된 FullscreenUI 컴포넌트 사용
+        if (isWebViewFullscreen) {
+            FullscreenUI(
+            tabs = tabs,
+            currentTabIndex = currentTabIndex,
+            currentUrl = currentUrl,
+            urlText = urlText,
+            onUrlTextChange = { urlText = it },
+            onLoadUrl = { url ->
+                val finalUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    "https://$url"
+                } else {
+                    url
+                }
+                currentUrl = finalUrl
+                urlText = finalUrl
+                
+                // 현재 탭의 URL도 업데이트
+                currentTab?.let { tab ->
+                    tabs = tabs.map {
+                        if (it.id == tab.id) it.copy(url = finalUrl)
+                        else it
+                    }
+                }
+                
+                // 히스토리에 URL 추가 (중복 제거)
+                if (!urlHistory.contains(finalUrl)) {
+                    urlHistory = urlHistory + finalUrl
+                }
+                
+                // WebView에 URL 로드
+                fullscreenWebView?.loadUrl(finalUrl)
+                
+                // URL 변경 후 MP4 감지
+                Handler(Looper.getMainLooper()).postDelayed({
+                    analyzePageForMp4()
+                }, 1000)
+            },
+            showTabOverview = showTabOverview,
+            onShowTabOverview = { showTabOverview = it },
+            onAddNewTab = ::addNewTab,
+            canGoBack = canGoBack,
+            canGoForward = canGoForward,
+            isAnalyzing = isAnalyzing,
+            mp4Links = mp4Links,
+            downloadingUrls = downloadingUrls,
+            urlHistory = urlHistory,
+            onGoBack = {
+                Log.d("Navigation", "뒤로가기 클릭 - canGoBack: $canGoBack, fullscreenWebView: ${fullscreenWebView != null}")
+                fullscreenWebView?.let { webView ->
+                    Log.d("Navigation", "WebView canGoBack: ${webView.canGoBack()}")
+                    if (webView.canGoBack()) {
+                        webView.goBack()
+                        // 즉시 네비게이션 상태 업데이트
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            updateNavigationState()
+                            Log.d("Navigation", "뒤로가기 후 상태 - canGoBack: $canGoBack, canGoForward: $canGoForward")
+                        }, 100)
+                    }
+                }
+            },
+            onGoForward = {
+                Log.d("Navigation", "앞으로가기 클릭 - canGoForward: $canGoForward, fullscreenWebView: ${fullscreenWebView != null}")
+                fullscreenWebView?.let { webView ->
+                    Log.d("Navigation", "WebView canGoForward: ${webView.canGoForward()}")
+                    if (webView.canGoForward()) {
+                        webView.goForward()
+                        // 즉시 네비게이션 상태 업데이트
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            updateNavigationState()
+                            Log.d("Navigation", "앞으로가기 후 상태 - canGoBack: $canGoBack, canGoForward: $canGoForward")
+                        }, 100)
+                    }
+                }
+            },
+            onRefresh = {
+                fullscreenWebView?.reload()
+                Handler(Looper.getMainLooper()).postDelayed({
+                    analyzePageForMp4()
+                }, 1500)
+            },
+            onShowMp4List = { showMp4List = !showMp4List },
+            onSwitchTab = ::switchTab,
+            onCloseTab = ::closeTab,
+            onDownloadVideo = ::downloadVideo,
+            onExitFullscreen = { 
+                // 전체화면 WebView의 상태 저장
+                fullscreenWebView?.let { fsWebView ->
+                    val bundle = Bundle()
+                    fsWebView.saveState(bundle)
+                    webViewState = bundle
+                    
+                    // 현재 URL도 업데이트
+                    fsWebView.url?.let { url ->
+                        if (url != currentUrl && 
+                            !url.startsWith("data:") && 
+                            !url.startsWith("about:") &&
+                            url != "about:blank") {
+                            currentUrl = url
+                            urlText = url
+                        }
+                    }
+                }
+                
+                // 전체화면 모드 종료 후 네비게이션 상태 업데이트
+                isWebViewFullscreen = false
+                
+                // 상태 업데이트를 위한 지연 실행
+                Handler(Looper.getMainLooper()).postDelayed({
+                    updateNavigationState()
+                }, 100)
+            },
+            webViewContent = {
+                // 전체화면 WebView
+                if (currentUrl.isNotEmpty()) {
+                    AndroidView(
+                        factory = { context ->
+                            WebView(context).apply {
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                                        url?.let { newUrl ->
+                                            updateUrlIfChanged(newUrl)
+                                        }
+                                        return false
+                                    }
+
+                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                        super.onPageStarted(view, url, favicon)
+                                        url?.let { newUrl ->
+                                            updateUrlIfChanged(newUrl)
+                                        }
+                                    }
+
+                                    override fun onPageFinished(view: WebView?, url: String?) {
+                                        super.onPageFinished(view, url)
+                                        url?.let { newUrl ->
+                                            updateUrlIfChanged(newUrl)
+                                        }
+                                        
+                                        // 페이지 로딩 완료 후 MP4 감지
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            analyzePageForMp4()
+                                        }, 1000)
+                                    }
+                                }
+                                webChromeClient = object : WebChromeClient() {
+                                    override fun onReceivedTitle(view: WebView?, title: String?) {
+                                        super.onReceivedTitle(view, title)
+                                        // 탭 제목 업데이트
+                                        title?.let { 
+                                            currentTab?.let { tab ->
+                                                tabs = tabs.map { 
+                                                    if (it.id == tab.id) it.copy(title = title.take(15)) 
+                                                    else it 
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                settings.loadWithOverviewMode = true
+                                settings.useWideViewPort = true
+                                
+                                // 전체화면 WebView 참조 설정
+                                fullscreenWebView = this
+                                
+                                // 저장된 WebView 상태 복원 (히스토리 포함)
+                                webViewState?.let { bundle ->
+                                    restoreState(bundle)
+                                    // 상태 복원 후 네비게이션 상태 업데이트
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        updateNavigationState()
+                                    }, 500)
+                                } ?: run {
+                                    // 저장된 상태가 없으면 현재 URL로 로드
+                                    val syncUrl = webView?.url ?: currentUrl
+                                    if (syncUrl.isNotEmpty()) {
+                                        this.loadUrl(syncUrl)
+                                        // URL 로드 후 네비게이션 상태 업데이트
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            updateNavigationState()
+                                        }, 1000)
+                                    }
+                                }
+                            }
+                        },
+                        update = { view ->
+                            if (currentUrl.isNotEmpty() && view.url != currentUrl) {
+                                view.loadUrl(currentUrl)
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "웹 페이지가 로드되지 않았습니다",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        )
+        
+        // MP4 목록 표시 다이얼로그
+        if (showMp4List) {
+            Mp4ListDialog(
+                mp4Links = mp4Links,
+                downloadingUrls = downloadingUrls,
+                onDownload = { url -> downloadVideo(url) },
+                onDismiss = { showMp4List = false }
+            )
+        }
+        
+        // 다운로드 결과 알림 팝업
+        if (showDownloadResult && downloadResultMessage != null) {
+            DownloadResultDialog(
+                message = downloadResultMessage!!,
+                onDismiss = { 
+                    showDownloadResult = false
+                    downloadResultMessage = null
+                }
+            )
+        }
+        
+        return
+    }
+
+    // 일반 모드 레이아웃
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.systemBars)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Top
+    ) {
+        // 탭바
+        TabBar(
+            tabs = tabs,
+            currentTabIndex = currentTabIndex,
+            onNewTab = ::addNewTab,
+            onCloseTab = ::closeTab,
+            onSwitchTab = ::switchTab,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        // 앱 제목
+        Text(
+                            text = "Simple Web Video Downloader v5.8",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 12.dp),
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
+
+        // URL 입력 섹션
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp)
+            ) {
+                // 섹션 헤더 (클릭 가능)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { urlSectionExpanded = !urlSectionExpanded },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "웹 페이지 URL 입력",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = if (urlSectionExpanded) "▲" else "▼",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+
+                // 로드된 URL이 있고 섹션이 접혀있을 때 간단히 표시
+                if (!urlSectionExpanded && currentUrl.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = currentUrl.let { url ->
+                            if (url.length > 40) "...${url.takeLast(37)}" else url
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+
+                // 접힐 수 있는 내용
+                AnimatedVisibility(
+                    visible = urlSectionExpanded,
+                    enter = expandVertically(),
+                    exit = shrinkVertically()
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // URL 입력 필드
+                        OutlinedTextField(
+                            value = urlText,
+                            onValueChange = { urlText = it },
+                            label = { Text("URL을 입력하세요") },
+                            placeholder = { Text("https://example.com") },
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 3,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Uri,
+                                imeAction = ImeAction.Go
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onGo = { loadUrl() }
+                            ),
+                            trailingIcon = {
+                                TextButton(
+                                    onClick = {
+                                        clipboardManager.getText()?.text?.let { clipText ->
+                                            if (clipText.contains(".")) {
+                                                urlText = clipText
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Text("붙여넣기")
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 버튼들
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // 첫 번째 줄: 페이지 로드, 초기화
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = { loadUrl() },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = urlText.isNotBlank() && !isAnalyzing
+                                ) {
+                                    if (isAnalyzing) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("MP4 감지 중...")
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("페이지 로드")
+                                    }
+                                }
+
+                                Button(
+                                                                    onClick = { 
+                                    // 초기화 기능
+                                    urlText = ""
+                                    currentUrl = ""
+                                    mp4Links = emptyList()
+                                    webView = null
+                                    fullscreenWebView = null
+                                    urlSectionExpanded = true
+                                    mp4SectionExpanded = true
+                                    isAnalyzing = false
+                                    hasAnalyzed = false
+                                    downloadingUrls = emptySet()
+                                },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondary
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("초기화")
+                                }
+                            }
+
+                            // 두 번째 줄: 새로고침 & MP4 감지 (현재 URL이 있을 때만 표시)
+                            if (currentUrl.isNotEmpty()) {
+                                Button(
+                                    onClick = { 
+                                        webView?.reload()
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            analyzePageForMp4()
+                                        }, 1000)
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isAnalyzing,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.tertiary
+                                    )
+                                ) {
+                                    if (isAnalyzing) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = MaterialTheme.colorScheme.onTertiary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("새로고침 중...")
+                                    } else {
+                                        Text("🔄 새로고침 & MP4 감지")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 감지된 MP4 목록 및 다운로드 버튼
+        if (hasAnalyzed) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    // 섹션 헤더 (클릭 가능)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { mp4SectionExpanded = !mp4SectionExpanded },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (mp4Links.isEmpty()) {
+                                "🎯 감지된 MP4 비디오 (없음)"
+                            } else {
+                                "🎯 감지된 MP4 비디오 (${mp4Links.size}개)"
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = if (mp4SectionExpanded) "▲" else "▼",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                    // 접힌 상태에서 간단한 요약 표시
+                    if (!mp4SectionExpanded) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        if (mp4Links.isEmpty()) {
+                            Text(
+                                text = "이 페이지에서 MP4 비디오를 찾을 수 없습니다",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        } else {
+                            val downloadableCount = mp4Links.count { it.contains(".mp4") && it.contains("http") }
+                            Text(
+                                text = "다운로드 가능한 비디오: ${downloadableCount}개",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+
+                    // 접힐 수 있는 목록 내용
+                    AnimatedVisibility(
+                        visible = mp4SectionExpanded,
+                        enter = expandVertically(),
+                        exit = shrinkVertically()
+                    ) {
+                        Column {
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            if (mp4Links.isEmpty()) {
+                                // MP4가 없을 때 표시
+                                Text(
+                                    text = "이 페이지에서 MP4 비디오를 찾을 수 없습니다.\n비디오가 iframe이나 스트리밍으로 구현되었을 수 있습니다.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(vertical = 16.dp)
+                                )
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.height(200.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    itemsIndexed(mp4Links) { index, link ->
+                                    if (link.contains(".mp4") && link.contains("http")) {
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.surface
+                                            )
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Text(
+                                                    text = "${index + 1}. ${if (link.length > 50) "...${link.takeLast(50)}" else link}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    modifier = Modifier.padding(bottom = 8.dp)
+                                                )
+
+                                                Button(
+                                                    onClick = { downloadVideo(link) },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    enabled = !downloadingUrls.contains(link),
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = MaterialTheme.colorScheme.tertiary
+                                                    )
+                                                ) {
+                                                    if (downloadingUrls.contains(link)) {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(16.dp),
+                                                            color = MaterialTheme.colorScheme.onTertiary
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text("다운로드 중...")
+                                                    } else {
+                                                        Text("⬇️ 다운로드")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        Text(
+                                            text = "${index + 1}. $link",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.padding(vertical = 2.dp)
+                                        )
+                                    }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // MP4가 감지되지 않았을 때는 하단 여백 없음
+            if (mp4Links.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+
+        // WebView 영역 - 개선된 레이아웃
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            // WebView 카드
+            Card(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = if (currentUrl.isNotEmpty()) 100.dp else 0.dp), // 네비게이션 바를 위한 하단 여백 증가 (80dp → 100dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                if (currentUrl.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "웹 페이지를 로드하면 여기에 브라우저가 표시됩니다",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    AndroidView(
+                        factory = { context ->
+                            // 일반 모드 WebView 생성 또는 재사용
+                            webView ?: WebView(context).apply {
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                                        url?.let { newUrl ->
+                                            updateUrlIfChanged(newUrl)
+                                        }
+                                        return false
+                                    }
+
+                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                        super.onPageStarted(view, url, favicon)
+                                        url?.let { newUrl ->
+                                            updateUrlIfChanged(newUrl)
+                                        }
+                                    }
+
+                                    override fun onPageFinished(view: WebView?, url: String?) {
+                                        super.onPageFinished(view, url)
+                                        url?.let { newUrl ->
+                                            updateUrlIfChanged(newUrl)
+                                        }
+                                        
+                                        // 페이지 로딩 완료 후 MP4 감지
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            analyzePageForMp4()
+                                        }, 1000)
+                                    }
+                                }
+                                webChromeClient = object : WebChromeClient() {
+                                    override fun onReceivedTitle(view: WebView?, title: String?) {
+                                        super.onReceivedTitle(view, title)
+                                        // 탭 제목 업데이트
+                                        title?.let { 
+                                            currentTab?.let { tab ->
+                                                tabs = tabs.map { 
+                                                    if (it.id == tab.id) it.copy(title = title.take(15)) 
+                                                    else it 
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                settings.loadWithOverviewMode = true
+                                settings.useWideViewPort = true
+                                
+                                // 일반 모드 WebView 참조 설정
+                                webView = this
+                                
+                                // 저장된 WebView 상태 복원 (히스토리 포함)
+                                webViewState?.let { bundle ->
+                                    restoreState(bundle)
+                                } ?: run {
+                                    // 저장된 상태가 없으면 현재 URL로 로드
+                                    val syncUrl = fullscreenWebView?.url ?: currentUrl
+                                    if (syncUrl.isNotEmpty()) {
+                                        this.loadUrl(syncUrl)
+                                    }
+                                }
+                            }
+                        },
+                        update = { view ->
+                            if (currentUrl.isNotEmpty() && view.url != currentUrl) {
+                                view.loadUrl(currentUrl)
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            // 네비게이션 바 (WebView가 로드된 경우에만 표시)
+            if (currentUrl.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
+                        .padding(horizontal = 16.dp, vertical = 20.dp),  // vertical 패딩 증가 (12dp → 20dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 뒤로가기 버튼
+                        FloatingActionButton(
+                            onClick = { 
+                                Log.d("Navigation", "일반모드 뒤로가기 클릭 - canGoBack: $canGoBack, webView: ${webView != null}")
+                                webView?.let { view ->
+                                    Log.d("Navigation", "일반모드 WebView canGoBack: ${view.canGoBack()}")
+                                    if (view.canGoBack()) {
+                                        view.goBack()
+                                        // 즉시 네비게이션 상태 업데이트
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            updateNavigationState()
+                                            Log.d("Navigation", "일반모드 뒤로가기 후 상태 - canGoBack: $canGoBack, canGoForward: $canGoForward")
+                                        }, 100)
+                                    }
+                                }
+                            },
+                            modifier = Modifier.size(44.dp),
+                            containerColor = if (canGoBack) 
+                                MaterialTheme.colorScheme.secondaryContainer 
+                            else 
+                                MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "뒤로가기",
+                                modifier = Modifier.size(20.dp),
+                                tint = if (canGoBack) 
+                                    MaterialTheme.colorScheme.onSecondaryContainer 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+
+                        // 새로고침 + MP4 감지 버튼
+                        FloatingActionButton(
+                            onClick = { 
+                                webView?.reload()
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    analyzePageForMp4()
+                                }, 1500)
+                            },
+                            modifier = Modifier.size(44.dp),
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        ) {
+                            if (isAnalyzing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "새로고침",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
+
+                        // 앞으로가기 버튼
+                        FloatingActionButton(
+                            onClick = { 
+                                Log.d("Navigation", "일반모드 앞으로가기 클릭 - canGoForward: $canGoForward, webView: ${webView != null}")
+                                webView?.let { view ->
+                                    Log.d("Navigation", "일반모드 WebView canGoForward: ${view.canGoForward()}")
+                                    if (view.canGoForward()) {
+                                        view.goForward()
+                                        // 즉시 네비게이션 상태 업데이트
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            updateNavigationState()
+                                            Log.d("Navigation", "일반모드 앞으로가기 후 상태 - canGoBack: $canGoBack, canGoForward: $canGoForward")
+                                        }, 100)
+                                    }
+                                }
+                            },
+                            modifier = Modifier.size(44.dp),
+                            containerColor = if (canGoForward) 
+                                MaterialTheme.colorScheme.secondaryContainer 
+                            else 
+                                MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = "앞으로가기",
+                                modifier = Modifier.size(20.dp),
+                                tint = if (canGoForward) 
+                                    MaterialTheme.colorScheme.onSecondaryContainer 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+
+                        // 전체화면 버튼
+                        FloatingActionButton(
+                            onClick = { 
+                                // 일반 모드 WebView의 상태 저장
+                                webView?.let { mainWebView ->
+                                    val bundle = Bundle()
+                                    mainWebView.saveState(bundle)
+                                    webViewState = bundle
+                                    
+                                    // 현재 URL도 업데이트
+                                    mainWebView.url?.let { url ->
+                                        if (url != currentUrl && 
+                                            !url.startsWith("data:") && 
+                                            !url.startsWith("about:") &&
+                                            url != "about:blank") {
+                                            currentUrl = url
+                                            urlText = url
+                                        }
+                                    }
+                                }
+                                isWebViewFullscreen = true 
+                            },
+                            modifier = Modifier.size(44.dp),
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Text(
+                                text = "⛶",
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 다운로드 결과 알림 팝업 (일반 모드)
+        if (showDownloadResult && downloadResultMessage != null) {
+            DownloadResultDialog(
+                message = downloadResultMessage!!,
+                onDismiss = { 
+                    showDownloadResult = false
+                    downloadResultMessage = null
+                }
+            )
+        }
+    }
+}
+</file>
+
+<file path="app/build.gradle.kts">
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+}
+
+android {
+    namespace = "com.swvd.simplewebvideodownloader"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.swvd.simplewebvideodownloader"
+        minSdk = 24
+        targetSdk = 35
+        versionCode = 58
+        versionName = "5.8"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+    buildFeatures {
+        compose = true
+    }
+}
+
+dependencies {
+
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+
+    // HTML 파싱을 위한 Jsoup 라이브러리 추가
+    implementation("org.jsoup:jsoup:1.17.2")
+
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
+}
+</file>
+
+</files>
