@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.swvd.simplewebvideodownloader.download.DownloadHandler
 import com.swvd.simplewebvideodownloader.download.HlsDownloader
 import com.swvd.simplewebvideodownloader.download.VideoDownloadManager
-import com.swvd.simplewebvideodownloader.webview.VideoAnalyzer
+import com.swvd.simplewebvideodownloader.analyzer.VideoAnalyzer
 import com.swvd.simplewebvideodownloader.models.VideoInfo
 import com.swvd.simplewebvideodownloader.models.VideoType
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,13 +50,19 @@ class MainViewModel(context: Context) : ViewModel() {
             hasAnalyzed = true
         )
         
-        videoAnalyzer.analyzeVideos(webView) { videos ->
-            _uiState.value = _uiState.value.copy(
-                isAnalyzing = false,
-                videoList = videos,
-                mp4Links = videos.filter { it.type == VideoType.MP4 }
-                    .map { it.url }
-            )
+        // 신 버전 VideoAnalyzer 사용
+        videoAnalyzer.analyzePageForAllVideos(webView)
+        
+        // StateFlow를 통해 결과 수집
+        viewModelScope.launch {
+            videoAnalyzer.detectedVideos.collect { videos ->
+                _uiState.value = _uiState.value.copy(
+                    isAnalyzing = false,
+                    videoList = videos,
+                    mp4Links = videos.filter { it.type == VideoType.MP4 }
+                        .map { it.url }
+                )
+            }
         }
     }
     

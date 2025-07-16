@@ -5,6 +5,8 @@ import android.os.Environment
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.swvd.simplewebvideodownloader.hls.M3u8Parser
+import com.swvd.simplewebvideodownloader.hls.M3u8Playlist
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -15,6 +17,9 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * HLS (M3U8) 다운로드 핸들러
  * HLS 스트리밍 비디오를 다운로드하는 기능을 담당
+ * 
+ * MVP 버전: .ts 세그먼트들을 단순 바이너리 연결로 병합
+ * Phase 3: FFmpeg를 사용한 완전한 MP4 변환 예정
  */
 class HlsDownloader(private val context: Context) {
     
@@ -24,6 +29,9 @@ class HlsDownloader(private val context: Context) {
         private const val CONNECT_TIMEOUT = 10000
         private const val READ_TIMEOUT = 30000
     }
+    
+    // M3U8 파서 인스턴스
+    private val m3u8Parser = M3u8Parser()
     
     /**
      * HLS 다운로드 상태
@@ -59,7 +67,7 @@ class HlsDownloader(private val context: Context) {
     }
     
     /**
-     * HLS 스트림 다운로드 시작
+     * HLS 스트림 다운로드 시작 (최고 화질 자동 선택)
      * @param m3u8Url HLS 매니페스트 URL
      * @param filename 저장할 파일명
      * @param onComplete 완료 콜백
@@ -76,26 +84,45 @@ class HlsDownloader(private val context: Context) {
                 // 다운로드 상태 초기화
                 updateProgress(m3u8Url, DownloadStatus.DOWNLOADING)
                 
-                // 1. M3U8 매니페스트 다운로드
-                val playlistContent = downloadPlaylist(m3u8Url)
-                if (playlistContent.isNullOrEmpty()) {
-                    updateProgress(m3u8Url, DownloadStatus.FAILED, error = "매니페스트 다운로드 실패")
-                    onComplete(false, "매니페스트 다운로드 실패")
+                // 1. M3U8 플레이리스트 파싱 (M3u8Parser 사용)
+                val playlist = m3u8Parser.parseM3u8(m3u8Url)
+                Log.i(TAG, "플레이리스트 파싱 완료: ${playlist.description}")
+                
+                // 2. 최고 화질 URL 결정
+                val targetUrl = if (playlist.isMaster) {
+                    // 마스터 플레이리스트인 경우 최고 화질 URL 선택
+                    val bestQualityUrl = playlist.bestQualityUrl
+                    if (bestQualityUrl != null) {
+                        Log.i(TAG, "최고 화질 선택: ${playlist.variants.maxByOrNull { it.bandwidth }?.resolution} - $bestQualityUrl")
+                        bestQualityUrl
+                    } else {
+                        updateProgress(m3u8Url, DownloadStatus.FAILED, error = "화질 옵션을 찾을 수 없음")
+                        onComplete(false, "화질 옵션을 찾을 수 없음")
+                        return@withContext
+                    }
+                } else {
+                    // 미디어 플레이리스트인 경우 원본 URL 사용
+                    m3u8Url
+                }
+                
+                // 3. 실제 세그먼트 다운로드 수행
+                val finalPlaylist = if (playlist.isMaster) {
+                    // 최고 화질의 미디어 플레이리스트 다시 파싱
+                    m3u8Parser.parseM3u8(targetUrl)
+                } else {
+                    playlist
+                }
+                
+                if (finalPlaylist.segments.isEmpty()) {
+                    updateProgress(m3u8Url, DownloadStatus.FAILED, error = "세그먼트를 찾을 수 없음")
+                    onComplete(false, "세그먼트를 찾을 수 없음")
                     return@withContext
                 }
                 
-                // 2. 세그먼트 URL 추출
-                val segmentUrls = parsePlaylist(playlistContent, m3u8Url)
-                if (segmentUrls.isEmpty()) {
-                    updateProgress(m3u8Url, DownloadStatus.FAILED, error = "세그먼트 URL 추출 실패")
-                    onComplete(false, "세그먼트 URL 추출 실패")
-                    return@withContext
-                }
+                Log.d(TAG, "총 ${finalPlaylist.segments.size}개 세그먼트 발견")
+                updateProgress(m3u8Url, DownloadStatus.DOWNLOADING, totalSegments = finalPlaylist.segments.size)
                 
-                Log.d(TAG, "총 ${segmentUrls.size}개 세그먼트 발견")
-                updateProgress(m3u8Url, DownloadStatus.DOWNLOADING, totalSegments = segmentUrls.size)
-                
-                // 3. 출력 파일 준비
+                // 4. 출력 파일 준비
                 val outputFile = prepareOutputFile(filename)
                 if (outputFile == null) {
                     updateProgress(m3u8Url, DownloadStatus.FAILED, error = "출력 파일 생성 실패")
@@ -103,12 +130,16 @@ class HlsDownloader(private val context: Context) {
                     return@withContext
                 }
                 
-                // 4. 세그먼트 다운로드 및 병합
-                val success = downloadAndMergeSegments(m3u8Url, segmentUrls, outputFile)
+                // 5. 세그먼트 다운로드 및 병합
+                val success = downloadAndMergeSegments(m3u8Url, finalPlaylist, outputFile)
                 
                 if (success) {
                     updateProgress(m3u8Url, DownloadStatus.COMPLETED, progress = 100)
-                    onComplete(true, "다운로드 완료: ${outputFile.name}")
+                    val qualityInfo = if (playlist.isMaster) {
+                        val bestVariant = playlist.variants.maxByOrNull { it.bandwidth }
+                        " (${bestVariant?.resolution ?: "최고화질"})"
+                    } else ""
+                    onComplete(true, "다운로드 완료: ${outputFile.name}$qualityInfo")
                 } else {
                     updateProgress(m3u8Url, DownloadStatus.FAILED, error = "세그먼트 다운로드 실패")
                     onComplete(false, "세그먼트 다운로드 실패")
@@ -122,68 +153,7 @@ class HlsDownloader(private val context: Context) {
         }
     }
     
-    /**
-     * M3U8 매니페스트 다운로드
-     */
-    private suspend fun downloadPlaylist(url: String): String? {
-        return try {
-            val connection = URL(url).openConnection() as HttpURLConnection
-            connection.apply {
-                requestMethod = "GET"
-                setRequestProperty("User-Agent", USER_AGENT)
-                connectTimeout = CONNECT_TIMEOUT
-                readTimeout = READ_TIMEOUT
-            }
-            
-            val responseCode = connection.responseCode
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                connection.inputStream.bufferedReader().use { it.readText() }
-            } else {
-                Log.e(TAG, "매니페스트 다운로드 실패: HTTP $responseCode")
-                null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "매니페스트 다운로드 오류: ${e.message}")
-            null
-        }
-    }
     
-    /**
-     * M3U8 플레이리스트 파싱하여 세그먼트 URL 추출
-     */
-    private fun parsePlaylist(content: String, baseUrl: String): List<String> {
-        val segmentUrls = mutableListOf<String>()
-        val baseUri = baseUrl.substringBeforeLast("/")
-        
-        content.lines().forEach { line ->
-            val trimmedLine = line.trim()
-            
-            // 세그먼트 파일인지 확인 (일반적으로 .ts 파일)
-            if (trimmedLine.isNotEmpty() && 
-                !trimmedLine.startsWith("#") && 
-                (trimmedLine.endsWith(".ts") || 
-                 trimmedLine.endsWith(".m4s") || 
-                 trimmedLine.contains(".ts?") ||
-                 trimmedLine.contains(".m4s?"))) {
-                
-                val segmentUrl = if (trimmedLine.startsWith("http")) {
-                    trimmedLine
-                } else if (trimmedLine.startsWith("/")) {
-                    // 절대 경로
-                    val domain = baseUrl.substringBefore("/", baseUrl.substringAfter("://"))
-                    val protocol = baseUrl.substringBefore("://")
-                    "$protocol://$domain$trimmedLine"
-                } else {
-                    // 상대 경로
-                    "$baseUri/$trimmedLine"
-                }
-                
-                segmentUrls.add(segmentUrl)
-            }
-        }
-        
-        return segmentUrls
-    }
     
     /**
      * 출력 파일 준비
@@ -216,25 +186,27 @@ class HlsDownloader(private val context: Context) {
     }
     
     /**
-     * 세그먼트 다운로드 및 병합
+     * 세그먼트 다운로드 및 병합 (M3u8Playlist 사용)
      */
     private suspend fun downloadAndMergeSegments(
         m3u8Url: String,
-        segmentUrls: List<String>,
+        playlist: M3u8Playlist,
         outputFile: File
     ): Boolean {
         return try {
+            val segments = playlist.segments
+            
             FileOutputStream(outputFile).use { outputStream ->
-                segmentUrls.forEachIndexed { index, segmentUrl ->
+                segments.forEachIndexed { index, segment ->
                     try {
                         // 세그먼트 다운로드
-                        val segmentData = downloadSegment(segmentUrl)
+                        val segmentData = downloadSegment(segment.url)
                         if (segmentData != null) {
                             outputStream.write(segmentData)
                             outputStream.flush()
                             
                             // 진행률 업데이트
-                            val progress = ((index + 1) * 100) / segmentUrls.size
+                            val progress = ((index + 1) * 100) / segments.size
                             updateProgress(
                                 m3u8Url, 
                                 DownloadStatus.DOWNLOADING, 
@@ -242,9 +214,9 @@ class HlsDownloader(private val context: Context) {
                                 downloadedSegments = index + 1
                             )
                             
-                            Log.d(TAG, "세그먼트 ${index + 1}/${segmentUrls.size} 다운로드 완료 ($progress%)")
+                            Log.d(TAG, "세그먼트 ${index + 1}/${segments.size} 다운로드 완료 ($progress%) - ${segment.duration}초")
                         } else {
-                            Log.e(TAG, "세그먼트 다운로드 실패: $segmentUrl")
+                            Log.e(TAG, "세그먼트 다운로드 실패: ${segment.url}")
                             return@use false
                         }
                     } catch (e: Exception) {

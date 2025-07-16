@@ -4,7 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.webkit.WebView
-import com.swvd.simplewebvideodownloader.webview.VideoAnalyzer
+import com.swvd.simplewebvideodownloader.analyzer.VideoAnalyzer
 import com.swvd.simplewebvideodownloader.models.VideoInfo
 import com.swvd.simplewebvideodownloader.models.VideoType
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -100,9 +100,28 @@ class DetectVideosUseCase {
     private suspend fun performVideoDetection(webView: WebView): List<VideoInfo> {
         return suspendCancellableCoroutine { continuation ->
             try {
-                videoAnalyzer.analyzeVideos(webView) { videos ->
-                    continuation.resume(videos)
+                // 신 버전 VideoAnalyzer 사용
+                videoAnalyzer.analyzePageForAllVideos(webView)
+                
+                // StateFlow에서 결과 수집 (한 번만)
+                var collected = false
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                    videoAnalyzer.detectedVideos.collect { videos ->
+                        if (!collected && videos.isNotEmpty()) {
+                            collected = true
+                            continuation.resume(videos)
+                        }
+                    }
                 }
+                
+                // 타임아웃 설정 (5초)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (!collected) {
+                        collected = true
+                        continuation.resume(emptyList())
+                    }
+                }, 5000)
+                
             } catch (e: Exception) {
                 continuation.cancel(e)
             }
@@ -229,10 +248,14 @@ class DetectVideosUseCase {
         val runnable = object : Runnable {
             override fun run() {
                 webView?.let { view ->
-                    videoAnalyzer.analyzeVideos(view) { videos ->
-                        val validVideos = filterValidVideos(videos)
-                        if (validVideos.isNotEmpty()) {
-                            onVideosDetected(validVideos)
+                    videoAnalyzer.analyzePageForAllVideos(view)
+                    // StateFlow를 통해 결과 수집
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        videoAnalyzer.detectedVideos.collect { videos ->
+                            val validVideos = filterValidVideos(videos)
+                            if (validVideos.isNotEmpty()) {
+                                onVideosDetected(validVideos)
+                            }
                         }
                     }
                 }

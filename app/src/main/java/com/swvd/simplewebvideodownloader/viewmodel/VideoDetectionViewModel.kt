@@ -5,7 +5,7 @@ import android.webkit.WebView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.swvd.simplewebvideodownloader.webview.Mp4Analyzer
-import com.swvd.simplewebvideodownloader.webview.VideoAnalyzer
+import com.swvd.simplewebvideodownloader.analyzer.VideoAnalyzer
 import com.swvd.simplewebvideodownloader.models.VideoInfo
 import com.swvd.simplewebvideodownloader.models.VideoType
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,9 +70,14 @@ class VideoDetectionViewModel : ViewModel() {
         _hasAnalyzed.value = true
         _lastAnalysisTime.value = System.currentTimeMillis()
         
-        // 향상된 비디오 분석기 사용
-        videoAnalyzer.analyzeVideos(webView) { videos ->
-            processAnalysisResult(videos)
+        // 향상된 비디오 분석기 사용 - 신 버전 메서드 호출
+        videoAnalyzer.analyzePageForAllVideos(webView)
+        
+        // StateFlow를 통해 결과 수집
+        viewModelScope.launch {
+            videoAnalyzer.detectedVideos.collect { videos ->
+                processAnalysisResult(videos)
+            }
         }
     }
     

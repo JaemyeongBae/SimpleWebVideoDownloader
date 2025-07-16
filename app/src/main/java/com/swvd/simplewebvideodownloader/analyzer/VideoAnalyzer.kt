@@ -6,6 +6,8 @@ import android.webkit.WebViewClient
 import com.swvd.simplewebvideodownloader.webview.Mp4Analyzer
 import com.swvd.simplewebvideodownloader.hls.HlsDetector
 import com.swvd.simplewebvideodownloader.hls.HlsStream
+import com.swvd.simplewebvideodownloader.models.VideoInfo
+import com.swvd.simplewebvideodownloader.models.VideoType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -61,11 +63,9 @@ class VideoAnalyzer {
                 videoList.add(
                     VideoInfo(
                         url = stream.url,
+                        type = VideoType.HLS,
                         title = stream.title ?: "HLS 스트림",
-                        type = VideoType.M3U8_HLS,
-                        detectedAt = stream.detectedAt,
-                        fileSize = null,
-                        duration = stream.duration
+                        duration = stream.duration?.let { "${it}초" }
                     )
                 )
             }
@@ -76,18 +76,15 @@ class VideoAnalyzer {
                     videoList.add(
                         VideoInfo(
                             url = url,
-                            title = extractTitleFromUrl(url),
                             type = VideoType.MP4,
-                            detectedAt = System.currentTimeMillis(),
-                            fileSize = null,
-                            duration = null
+                            title = extractTitleFromUrl(url)
                         )
                     )
                 }
             }
             
-            // 감지 시간 순으로 정렬 (최신순)
-            videoList.sortedByDescending { it.detectedAt }
+            // HLS 스트림을 먼저, 그 다음 MP4 순으로 정렬
+            videoList.sortedBy { it.type.ordinal }
             
         }.let { flow ->
             // StateFlow 업데이트를 위한 코루틴 실행
@@ -113,11 +110,9 @@ class VideoAnalyzer {
             videoList.add(
                 VideoInfo(
                     url = stream.url,
+                    type = VideoType.HLS,
                     title = stream.title ?: "HLS 스트림",
-                    type = VideoType.M3U8_HLS,
-                    detectedAt = stream.detectedAt,
-                    fileSize = null,
-                    duration = stream.duration
+                    duration = stream.duration?.let { "${it}초" }
                 )
             )
         }
@@ -128,18 +123,15 @@ class VideoAnalyzer {
                 videoList.add(
                     VideoInfo(
                         url = url,
-                        title = extractTitleFromUrl(url),
                         type = VideoType.MP4,
-                        detectedAt = System.currentTimeMillis(),
-                        fileSize = null,
-                        duration = null
+                        title = extractTitleFromUrl(url)
                     )
                 )
             }
         }
         
-        // 감지 시간 순으로 정렬 (최신순)
-        val sortedList = videoList.sortedByDescending { it.detectedAt }
+        // HLS 먼저, MP4 나중 순으로 정렬
+        val sortedList = videoList.sortedBy { it.type.ordinal }
         _detectedVideos.value = sortedList
         
         Log.i(TAG, "통합 비디오 목록 업데이트: ${sortedList.size}개")
@@ -175,11 +167,9 @@ class VideoAnalyzer {
                 // VideoInfo로 변환하여 즉시 콜백 호출
                 val videoInfo = VideoInfo(
                     url = hlsStream.url,
+                    type = VideoType.HLS,
                     title = hlsStream.title ?: "HLS 스트림",
-                    type = VideoType.M3U8_HLS,
-                    detectedAt = hlsStream.detectedAt,
-                    fileSize = null,
-                    duration = hlsStream.duration
+                    duration = hlsStream.duration?.let { "${it}초" }
                 )
                 
                 onVideoDetectedCallback?.invoke(videoInfo)
@@ -210,11 +200,8 @@ class VideoAnalyzer {
             validMp4Links.forEach { url ->
                 val videoInfo = VideoInfo(
                     url = url,
-                    title = extractTitleFromUrl(url),
                     type = VideoType.MP4,
-                    detectedAt = System.currentTimeMillis(),
-                    fileSize = null,
-                    duration = null
+                    title = extractTitleFromUrl(url)
                 )
                 
                 onVideoDetectedCallback?.invoke(videoInfo)
@@ -279,63 +266,9 @@ class VideoAnalyzer {
         get() {
             val current = _detectedVideos.value
             val mp4Count = current.count { it.type == VideoType.MP4 }
-            val hlsCount = current.count { it.type == VideoType.M3U8_HLS }
+            val hlsCount = current.count { it.type == VideoType.HLS }
             
             return "MP4: ${mp4Count}개, HLS: ${hlsCount}개"
         }
 }
 
-/**
- * 통합 비디오 정보
- * @param url 비디오 URL
- * @param title 비디오 제목
- * @param type 비디오 타입 (MP4, HLS 등)
- * @param detectedAt 감지 시각 (타임스탬프)
- * @param fileSize 파일 크기 (바이트, 옵션)
- * @param duration 재생 시간 (초, 옵션)
- */
-data class VideoInfo(
-    val url: String,
-    val title: String,
-    val type: VideoType,
-    val detectedAt: Long,
-    val fileSize: Long? = null,
-    val duration: Long? = null
-) {
-    /**
-     * 사용자 친화적인 설명
-     */
-    val description: String
-        get() = buildString {
-            append(type.displayName)
-            if (duration != null) {
-                append(" (${duration}초)")
-            }
-            if (fileSize != null) {
-                append(" - ${formatFileSize(fileSize)}")
-            }
-        }
-    
-    /**
-     * 파일 크기를 사용자 친화적으로 포맷
-     */
-    private fun formatFileSize(bytes: Long): String {
-        return when {
-            bytes >= 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024 * 1024)}GB"
-            bytes >= 1024 * 1024 -> "${bytes / (1024 * 1024)}MB"
-            bytes >= 1024 -> "${bytes / 1024}KB"
-            else -> "${bytes}B"
-        }
-    }
-}
-
-/**
- * 비디오 타입 열거형
- */
-enum class VideoType(val displayName: String) {
-    MP4("MP4 비디오"),
-    M3U8_HLS("HLS 스트리밍"),
-    DASH("DASH 스트리밍"),
-    WEBM("WebM 비디오"),
-    UNKNOWN("알 수 없는 형식")
-}

@@ -219,7 +219,7 @@ class VideoDownloadManager(private val context: Context) {
             VideoType.AVI -> ".avi"
             VideoType.MOV -> ".mov"
             VideoType.FLV -> ".flv"
-            VideoType.HLS -> ".mp4" // HLS는 MP4로 병합
+            VideoType.HLS -> ".ts" // MVP: TS 병합 파일 (Phase 3에서 .mp4로 변환 예정)
             else -> ".mp4"
         }
         
