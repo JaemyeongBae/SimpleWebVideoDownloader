@@ -12,8 +12,8 @@ android {
         applicationId = "com.swvd.simplewebvideodownloader"
         minSdk = 24
         targetSdk = 35
-        versionCode = 60  // 5.8 → 6.0
-        versionName = "6.0"
+        versionCode = 61  // 6.0 → 6.0.1
+        versionName = "6.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
@@ -65,8 +65,8 @@ dependencies {
     // HTML 파싱을 위한 Jsoup 라이브러리 추가
     implementation("org.jsoup:jsoup:1.17.2")
 
-    // Mobile FFmpeg - Phase 3에서 추가 예정 (현재 MVP에서는 제외)
-    // implementation("com.arthenica:mobile-ffmpeg-min-gpl:4.4.LTS")
+    // FFmpeg - Phase 3에서 추가 예정 (현재 MVP에서는 제외)
+    // implementation("com.arthenica:ffmpeg-kit-min-gpl:4.5.1")
 
     // 테스트를 위한 라이브러리들
     testImplementation("io.mockk:mockk:1.13.8")
