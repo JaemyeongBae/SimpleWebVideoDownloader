@@ -78,9 +78,18 @@ dependencies {
 
     // HTML 파싱을 위한 Jsoup 라이브러리 추가
     implementation("org.jsoup:jsoup:1.17.2")
-    
+
     // Mobile FFmpeg 최소 빌드 (HLS 지원)
     implementation("com.arthenica:mobile-ffmpeg-min-gpl:4.4.LTS")
+
+    // 테스트를 위한 라이브러리들
+    testImplementation("io.mockk:mockk:1.13.8")
+    testImplementation("org.robolectric:robolectric:4.11.1")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+
+    // 코루틴 지원
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

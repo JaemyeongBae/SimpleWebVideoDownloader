@@ -48,8 +48,12 @@ import androidx.core.view.WindowCompat
 
 // Import separated components and utilities
 import com.swvd.simplewebvideodownloader.models.Tab
+import com.swvd.simplewebvideodownloader.models.VideoInfo
+import com.swvd.simplewebvideodownloader.models.VideoType
 import com.swvd.simplewebvideodownloader.download.DownloadHandler
+import com.swvd.simplewebvideodownloader.download.HlsDownloader
 import com.swvd.simplewebvideodownloader.webview.Mp4Analyzer
+import com.swvd.simplewebvideodownloader.webview.VideoAnalyzer
 import com.swvd.simplewebvideodownloader.utils.FullscreenManager
 import com.swvd.simplewebvideodownloader.ui.components.*
 import com.swvd.simplewebvideodownloader.ui.screens.FullscreenUI
@@ -63,8 +67,14 @@ class MainActivity : ComponentActivity() {
     // 다운로드 관련 기능을 담당하는 핸들러
     private lateinit var downloadHandler: DownloadHandler
     
-    // MP4 분석 기능을 담당하는 애널라이저
+    // HLS 다운로드 기능을 담당하는 핸들러
+    private lateinit var hlsDownloader: HlsDownloader
+    
+    // MP4 분석 기능을 담당하는 애널라이저 (기존 호환성 유지)
     private val mp4Analyzer = Mp4Analyzer()
+    
+    // 향상된 비디오 분석 기능을 담당하는 애널라이저
+    private val videoAnalyzer = VideoAnalyzer()
 
     // 권한 요청 처리
     private val requestPermissionLauncher = registerForActivityResult(
@@ -86,6 +96,9 @@ class MainActivity : ComponentActivity() {
         // DownloadHandler 초기화
         downloadHandler = DownloadHandler(this)
         
+        // HlsDownloader 초기화
+        hlsDownloader = HlsDownloader(this)
+        
         setContent {
             MaterialTheme {
                 Surface(
@@ -95,7 +108,9 @@ class MainActivity : ComponentActivity() {
                 ) {
                     MainScreen(
                         downloadHandler = downloadHandler,
+                        hlsDownloader = hlsDownloader,
                         mp4Analyzer = mp4Analyzer,
+                        videoAnalyzer = videoAnalyzer,
                         onRequestPermissions = { requestStoragePermissions() },
                         onFullscreenModeChange = { isFullscreen -> 
                             FullscreenManager.setFullscreenMode(this@MainActivity, isFullscreen) 
@@ -127,7 +142,9 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(
     modifier: Modifier = Modifier,
     downloadHandler: DownloadHandler,
+    hlsDownloader: HlsDownloader,
     mp4Analyzer: Mp4Analyzer,
+    videoAnalyzer: VideoAnalyzer,
     onRequestPermissions: () -> Unit,
     onFullscreenModeChange: (Boolean) -> Unit
 ) {
@@ -141,6 +158,7 @@ fun MainScreen(
     var webView by remember { mutableStateOf<WebView?>(null) }
     var fullscreenWebView by remember { mutableStateOf<WebView?>(null) }
     var mp4Links by remember { mutableStateOf<List<String>>(emptyList()) }
+    var videoList by remember { mutableStateOf<List<VideoInfo>>(emptyList()) }
     var isAnalyzing by remember { mutableStateOf(false) }
     var hasAnalyzed by remember { mutableStateOf(false) }
     var downloadingUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -245,15 +263,20 @@ fun MainScreen(
             webView ?: fullscreenWebView
         }
         
-        Log.d("WebView", "MP4 감지 시작 (전체화면: $isWebViewFullscreen)")
+        Log.d("WebView", "비디오 감지 시작 (전체화면: $isWebViewFullscreen)")
         
         isAnalyzing = true
         hasAnalyzed = true
         
-        // 분리된 Mp4Analyzer 사용
-        mp4Analyzer.analyzePageForMp4(activeWebView) { videoLinks ->
-            mp4Links = videoLinks
+        // 새로운 VideoAnalyzer 사용
+        videoAnalyzer.analyzeVideos(activeWebView) { videos ->
+            videoList = videos
+            // 기존 호환성을 위해 MP4 링크도 유지
+            mp4Links = videos.filter { it.type == VideoType.MP4 }
+                .map { it.url }
             isAnalyzing = false
+            
+            Log.d("WebView", "감지 완료 - 총 ${videos.size}개 비디오 (MP4: ${mp4Links.size}개)")
         }
     }
 
