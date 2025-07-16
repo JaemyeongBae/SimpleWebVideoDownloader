@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# FFmpeg 네이티브 라이브러리 보호
+-keep class com.arthenica.mobileffmpeg.** { *; }
+-keep class com.arthenica.mobileffmpeg.Config {
+    native <methods>;
+    void log(int, byte[]);
+    void statistics(int, int, float, float, long, int, double, double);
+}

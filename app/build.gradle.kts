@@ -12,15 +12,41 @@ android {
         applicationId = "com.swvd.simplewebvideodownloader"
         minSdk = 24
         targetSdk = 35
-        versionCode = 58
-        versionName = "5.8"
+        versionCode = 60  // 5.8 → 6.0
+        versionName = "6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // AAB를 위한 필수 설정
+        ndk {
+            // 지원할 CPU 아키텍처 명시
+            abiFilters += listOf(
+                "arm64-v8a",      // 최신 64비트 기기 (필수)
+                "armeabi-v7a",    // 구형 32비트 기기
+                "x86_64"          // 에뮬레이터 테스트용
+            )
+        }
+    }
+    
+    // AAB 빌드 설정
+    bundle {
+        language {
+            // 언어 리소스 분할 (선택사항)
+            enableSplit = true
+        }
+        density {
+            // 화면 밀도별 리소스 분할
+            enableSplit = true
+        }
+        abi {
+            // CPU 아키텍처별 분할 (핵심!)
+            enableSplit = true
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -52,6 +78,9 @@ dependencies {
 
     // HTML 파싱을 위한 Jsoup 라이브러리 추가
     implementation("org.jsoup:jsoup:1.17.2")
+    
+    // Mobile FFmpeg 최소 빌드 (HLS 지원)
+    implementation("com.arthenica:mobile-ffmpeg-min-gpl:4.4.LTS")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
