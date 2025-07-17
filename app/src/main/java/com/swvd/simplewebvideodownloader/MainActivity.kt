@@ -48,8 +48,12 @@ import androidx.core.view.WindowCompat
 
 // Import separated components and utilities
 import com.swvd.simplewebvideodownloader.models.Tab
+import com.swvd.simplewebvideodownloader.models.VideoInfo
+import com.swvd.simplewebvideodownloader.models.VideoType
 import com.swvd.simplewebvideodownloader.download.DownloadHandler
+import com.swvd.simplewebvideodownloader.download.HlsDownloader
 import com.swvd.simplewebvideodownloader.webview.Mp4Analyzer
+import com.swvd.simplewebvideodownloader.analyzer.VideoAnalyzer
 import com.swvd.simplewebvideodownloader.utils.FullscreenManager
 import com.swvd.simplewebvideodownloader.ui.components.*
 import com.swvd.simplewebvideodownloader.ui.screens.FullscreenUI
@@ -63,8 +67,14 @@ class MainActivity : ComponentActivity() {
     // 다운로드 관련 기능을 담당하는 핸들러
     private lateinit var downloadHandler: DownloadHandler
     
-    // MP4 분석 기능을 담당하는 애널라이저
+    // HLS 다운로드 기능을 담당하는 핸들러
+    private lateinit var hlsDownloader: HlsDownloader
+    
+    // MP4 분석 기능을 담당하는 애널라이저 (기존 호환성 유지)
     private val mp4Analyzer = Mp4Analyzer()
+    
+    // 향상된 비디오 분석 기능을 담당하는 애널라이저
+    private val videoAnalyzer = VideoAnalyzer()
 
     // 권한 요청 처리
     private val requestPermissionLauncher = registerForActivityResult(
@@ -86,6 +96,9 @@ class MainActivity : ComponentActivity() {
         // DownloadHandler 초기화
         downloadHandler = DownloadHandler(this)
         
+        // HlsDownloader 초기화
+        hlsDownloader = HlsDownloader(this)
+        
         setContent {
             MaterialTheme {
                 Surface(
@@ -95,7 +108,9 @@ class MainActivity : ComponentActivity() {
                 ) {
                     MainScreen(
                         downloadHandler = downloadHandler,
+                        hlsDownloader = hlsDownloader,
                         mp4Analyzer = mp4Analyzer,
+                        videoAnalyzer = videoAnalyzer,
                         onRequestPermissions = { requestStoragePermissions() },
                         onFullscreenModeChange = { isFullscreen -> 
                             FullscreenManager.setFullscreenMode(this@MainActivity, isFullscreen) 
@@ -127,7 +142,9 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(
     modifier: Modifier = Modifier,
     downloadHandler: DownloadHandler,
+    hlsDownloader: HlsDownloader,
     mp4Analyzer: Mp4Analyzer,
+    videoAnalyzer: VideoAnalyzer,
     onRequestPermissions: () -> Unit,
     onFullscreenModeChange: (Boolean) -> Unit
 ) {
@@ -141,6 +158,7 @@ fun MainScreen(
     var webView by remember { mutableStateOf<WebView?>(null) }
     var fullscreenWebView by remember { mutableStateOf<WebView?>(null) }
     var mp4Links by remember { mutableStateOf<List<String>>(emptyList()) }
+    var videoList by remember { mutableStateOf<List<VideoInfo>>(emptyList()) }
     var isAnalyzing by remember { mutableStateOf(false) }
     var hasAnalyzed by remember { mutableStateOf(false) }
     var downloadingUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -245,15 +263,23 @@ fun MainScreen(
             webView ?: fullscreenWebView
         }
         
-        Log.d("WebView", "MP4 감지 시작 (전체화면: $isWebViewFullscreen)")
+        Log.d("WebView", "비디오 감지 시작 (전체화면: $isWebViewFullscreen)")
         
         isAnalyzing = true
         hasAnalyzed = true
         
-        // 분리된 Mp4Analyzer 사용
-        mp4Analyzer.analyzePageForMp4(activeWebView) { videoLinks ->
-            mp4Links = videoLinks
+        // 새로운 VideoAnalyzer 사용 - 올바른 메서드 호출
+        videoAnalyzer.analyzePageForAllVideos(activeWebView)
+        
+        // VideoAnalyzer의 detectedVideos를 관찰하여 UI 업데이트
+        videoAnalyzer.detectedVideos.value.let { videos ->
+            videoList = videos
+            // 기존 호환성을 위해 MP4 링크도 유지
+            mp4Links = videos.filter { it.type == VideoType.MP4 }
+                .map { it.url }
             isAnalyzing = false
+            
+            Log.d("WebView", "감지 완료 - 총 ${videos.size}개 비디오 (MP4: ${mp4Links.size}개, HLS: ${videos.count { it.type == VideoType.HLS }}개)")
         }
     }
 
@@ -430,6 +456,18 @@ fun MainScreen(
             updateNavigationState()
         }
     }
+    
+    // VideoAnalyzer의 실시간 감지 결과 관찰
+    LaunchedEffect(videoAnalyzer.detectedVideos) {
+        videoAnalyzer.detectedVideos.collect { videos ->
+            videoList = videos
+            // 기존 호환성을 위해 MP4 링크도 유지
+            mp4Links = videos.filter { it.type == VideoType.MP4 }
+                .map { it.url }
+            
+            Log.d("VideoAnalyzer", "실시간 감지 업데이트 - 총 ${videos.size}개 비디오 (MP4: ${mp4Links.size}개, HLS: ${videos.count { it.type == VideoType.HLS }}개)")
+        }
+    }
 
             // 전체화면 모드일 때 분리된 FullscreenUI 컴포넌트 사용
         if (isWebViewFullscreen) {
@@ -549,33 +587,23 @@ fun MainScreen(
                     AndroidView(
                         factory = { context ->
                             WebView(context).apply {
-                                webViewClient = object : WebViewClient() {
-                                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                        url?.let { newUrl ->
-                                            updateUrlIfChanged(newUrl)
-                                        }
-                                        return false
-                                    }
-
-                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                        super.onPageStarted(view, url, favicon)
-                                        url?.let { newUrl ->
-                                            updateUrlIfChanged(newUrl)
-                                        }
-                                    }
-
-                                    override fun onPageFinished(view: WebView?, url: String?) {
-                                        super.onPageFinished(view, url)
+                                // VideoAnalyzer의 Enhanced WebViewClient 사용 (HLS + MP4 통합 감지)
+                                webViewClient = videoAnalyzer.createEnhancedWebViewClient(
+                                    onPageFinished = { url ->
                                         url?.let { newUrl ->
                                             updateUrlIfChanged(newUrl)
                                         }
                                         
-                                        // 페이지 로딩 완료 후 MP4 감지
-                                        Handler(Looper.getMainLooper()).postDelayed({
-                                            analyzePageForMp4()
-                                        }, 1000)
+                                        // 네비게이션 상태 업데이트
+                                        updateNavigationState()
+                                        
+                                        Log.d("VideoAnalyzer", "전체화면모드 페이지 로딩 완료: $url")
+                                    },
+                                    onVideoDetected = { videoInfo ->
+                                        Log.d("VideoAnalyzer", "전체화면모드 즉시 감지: ${videoInfo.type.displayName} - ${videoInfo.url}")
+                                        // UI는 LaunchedEffect에서 StateFlow를 관찰하므로 별도 처리 불필요
                                     }
-                                }
+                                )
                                 webChromeClient = object : WebChromeClient() {
                                     override fun onReceivedTitle(view: WebView?, title: String?) {
                                         super.onReceivedTitle(view, title)
@@ -868,8 +896,24 @@ fun MainScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 감지된 MP4 목록 및 다운로드 버튼
-        if (hasAnalyzed) {
+        // 감지된 비디오 목록 (MP4 + HLS 통합)
+        VideoListSection(
+            modifier = Modifier.fillMaxWidth(),
+            hasAnalyzed = hasAnalyzed,
+            videoList = videoList,
+            mp4Links = mp4Links, // 기존 호환성 유지
+            downloadingUrls = downloadingUrls,
+            videoSectionExpanded = mp4SectionExpanded,
+            onToggleExpanded = { mp4SectionExpanded = !mp4SectionExpanded },
+            onDownloadVideo = { videoInfo ->
+                // VideoDownloadManager 사용하여 다운로드
+                downloadVideo(videoInfo.url)
+            },
+            onDownloadMp4 = ::downloadVideo // 기존 호환성 유지
+        )
+        
+        // 기존 MP4 섹션을 VideoListSection으로 교체했으므로 주석 처리
+        /*if (hasAnalyzed) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -998,7 +1042,7 @@ fun MainScreen(
             if (mp4Links.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
             }
-        }
+        }*/
 
         // WebView 영역 - 개선된 레이아웃
         Box(
@@ -1031,33 +1075,23 @@ fun MainScreen(
                         factory = { context ->
                             // 일반 모드 WebView 생성 또는 재사용
                             webView ?: WebView(context).apply {
-                                webViewClient = object : WebViewClient() {
-                                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                        url?.let { newUrl ->
-                                            updateUrlIfChanged(newUrl)
-                                        }
-                                        return false
-                                    }
-
-                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                        super.onPageStarted(view, url, favicon)
-                                        url?.let { newUrl ->
-                                            updateUrlIfChanged(newUrl)
-                                        }
-                                    }
-
-                                    override fun onPageFinished(view: WebView?, url: String?) {
-                                        super.onPageFinished(view, url)
+                                // VideoAnalyzer의 Enhanced WebViewClient 사용 (HLS + MP4 통합 감지)
+                                webViewClient = videoAnalyzer.createEnhancedWebViewClient(
+                                    onPageFinished = { url ->
                                         url?.let { newUrl ->
                                             updateUrlIfChanged(newUrl)
                                         }
                                         
-                                        // 페이지 로딩 완료 후 MP4 감지
-                                        Handler(Looper.getMainLooper()).postDelayed({
-                                            analyzePageForMp4()
-                                        }, 1000)
+                                        // 네비게이션 상태 업데이트
+                                        updateNavigationState()
+                                        
+                                        Log.d("VideoAnalyzer", "일반모드 페이지 로딩 완료: $url")
+                                    },
+                                    onVideoDetected = { videoInfo ->
+                                        Log.d("VideoAnalyzer", "일반모드 즉시 감지: ${videoInfo.type.displayName} - ${videoInfo.url}")
+                                        // UI는 LaunchedEffect에서 StateFlow를 관찰하므로 별도 처리 불필요
                                     }
-                                }
+                                )
                                 webChromeClient = object : WebChromeClient() {
                                     override fun onReceivedTitle(view: WebView?, title: String?) {
                                         super.onReceivedTitle(view, title)

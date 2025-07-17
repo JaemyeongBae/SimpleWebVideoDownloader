@@ -17,32 +17,18 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-        // AAB를 위한 필수 설정
-        ndk {
-            // 지원할 CPU 아키텍처 명시
-            abiFilters += listOf(
-                "arm64-v8a",      // 최신 64비트 기기 (필수)
-                "armeabi-v7a",    // 구형 32비트 기기
-                "x86_64"          // 에뮬레이터 테스트용
-            )
-        }
+        // AAB 설정 - Phase 3 FFmpeg 통합 시 활성화 예정
+        // ndk {
+        //     abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        // }
     }
     
-    // AAB 빌드 설정
-    bundle {
-        language {
-            // 언어 리소스 분할 (선택사항)
-            enableSplit = true
-        }
-        density {
-            // 화면 밀도별 리소스 분할
-            enableSplit = true
-        }
-        abi {
-            // CPU 아키텍처별 분할 (핵심!)
-            enableSplit = true
-        }
-    }
+    // AAB 빌드 설정 - Phase 3에서 FFmpeg와 함께 활성화 예정
+    // bundle {
+    //     language { enableSplit = true }
+    //     density { enableSplit = true }
+    //     abi { enableSplit = true }
+    // }
 
     buildTypes {
         release {
@@ -78,9 +64,18 @@ dependencies {
 
     // HTML 파싱을 위한 Jsoup 라이브러리 추가
     implementation("org.jsoup:jsoup:1.17.2")
-    
-    // Mobile FFmpeg 최소 빌드 (HLS 지원)
-    implementation("com.arthenica:mobile-ffmpeg-min-gpl:4.4.LTS")
+
+    // FFmpeg - Phase 3에서 추가 예정 (현재 MVP에서는 제외)
+    // implementation("com.arthenica:ffmpeg-kit-min-gpl:4.5.1")
+
+    // 테스트를 위한 라이브러리들
+    testImplementation("io.mockk:mockk:1.13.8")
+    testImplementation("org.robolectric:robolectric:4.11.1")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+
+    // 코루틴 지원
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
