@@ -12,8 +12,8 @@ android {
         applicationId = "com.swvd.simplewebvideodownloader"
         minSdk = 24
         targetSdk = 35
-        versionCode = 61
-        versionName = "6.1.0"
+        versionCode = 62
+        versionName = "6.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
